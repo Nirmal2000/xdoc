@@ -26,6 +26,9 @@ export default function ChatUI({ experienceId, userId }) {
   });
 
   const handleNewChat = async () => {
+    // Clear existing messages first
+    setMessages([]);
+    
     // Create new conversation via API
     const response = await fetch(`/api/experiences/${experienceId}/conversations`, {
       method: 'POST',
@@ -44,6 +47,12 @@ export default function ChatUI({ experienceId, userId }) {
     
     const data = await response.json();
     setCurrentConversationId(data.conversation_id);
+    
+    // Trigger sidebar to reload conversations
+    if (window.loadConversations) {
+      window.loadConversations();
+    }
+    
     return data.conversation_id;
   };
 

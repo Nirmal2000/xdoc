@@ -12,8 +12,9 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { PlusIcon, Search } from "lucide-react"
+import { PlusIcon, Search, Trash2 } from "lucide-react"
 import { supabase } from '@/lib/supabase';
+import { toast } from "sonner";
 
 export default function ChatSidebar({ experienceId, userId, currentConversationId, onNewChat, onSelectConversation }) {
   const [conversations, setConversations] = useState([]);
@@ -41,11 +42,30 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
     }
   };
 
+  const handleDeleteConversation = async (conversationId, e) => {
+    e.stopPropagation();
+    
+    try {
+      const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to delete conversation');
+        return;
+      }      
+      loadConversations();      
+      if (conversationId === currentConversationId && onSelectConversation) {
+        onSelectConversation(null);
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    }
+  };
+
   // Expose loadConversations to parent
   useEffect(() => {
-    if (window.loadConversations) {
-      window.loadConversations = loadConversations;
-    }
+    window.loadConversations = loadConversations;
   }, []);
 
   return (
@@ -76,15 +96,25 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
             <SidebarGroupLabel>Recent Conversations</SidebarGroupLabel>
             <SidebarMenu>
               {conversations.map((conversation) => (
-                <SidebarMenuButton
-                  key={conversation.id}
-                  onClick={() => onSelectConversation(conversation.id)}
-                  className={cn(
-                    currentConversationId === conversation.id && "bg-accent"
-                  )}
-                >
-                  <span>{conversation.title}</span>
-                </SidebarMenuButton>
+                <div key={conversation.id} className="relative group">
+                  <SidebarMenuButton
+                    onClick={() => onSelectConversation(conversation.id)}
+                    className={cn(
+                      "w-full pr-10",
+                      currentConversationId === conversation.id && "bg-accent"
+                    )}
+                  >
+                    <span>{conversation.title}</span>
+                  </SidebarMenuButton>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-6 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
+                    onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                  >
+                    <Trash2 className="size-3 text-red-500" />
+                  </Button>
+                </div>
               ))}
             </SidebarMenu>
           </SidebarGroup>

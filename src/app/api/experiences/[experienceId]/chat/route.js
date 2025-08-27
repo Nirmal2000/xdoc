@@ -16,9 +16,6 @@ export async function POST(req, { params }) {
   const body = await req.json();
   const { messages, user_id, conversation_id } = body;
 
-  console.log('Request body:', body);
-  console.log('user_id:', user_id, 'conversation_id:', conversation_id);
-  console.log('messages:', messages, 'typeof messages:', typeof messages, 'Array.isArray:', Array.isArray(messages));
 
   if (!user_id) {
     throw new Error('user_id is required');
@@ -59,8 +56,7 @@ export async function POST(req, { params }) {
     model: xai('grok-3-mini'),
     messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
-    onFinish: async (result) => {
-      console.log("AI Response:", result);
+    onFinish: async (result) => {      
       
       // Construct AI message in the same format as user messages
       const aiMessage = {
