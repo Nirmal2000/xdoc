@@ -75,6 +75,7 @@ export async function GET(req) {
     if (returnTo) {
       res.cookies.set('x_return_to', '', { path: '/', expires: new Date(0) });
     }
+    console.log('[X CALLBACK Auth]', { token, dest });
     return res;
   } catch (e) {
     return new Response(`Token exchange error: ${e.message}`, { status: 500 });

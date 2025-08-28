@@ -24,11 +24,12 @@ export async function GET(req) {
     codeChallenge: codeVerifier,
     state,
   });
-
+  
   const jar = await cookies();
   // Persist state + verifier briefly for callback validation
   const ttlSeconds = 10 * 60; // 10 minutes
   const expires = new Date(Date.now() + ttlSeconds * 1000);
+  console.log('[X AUTHORIZE Auth]', { state, codeVerifier, expires });
 
   // Use NextResponse to ensure cookies are attached to the redirect response
   const res = NextResponse.redirect(authorizeUrl, { status: 302 });
