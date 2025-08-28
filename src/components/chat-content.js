@@ -59,6 +59,20 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   // Store original prompt when recording starts
   const [originalPrompt, setOriginalPrompt] = useState('');
 
+  // Listen for popup auth completion and refresh
+  useEffect(() => {
+    function onMessage(e) {
+      if (e?.data && e.data.type === 'x-auth' && e.data.status === 'ok') {
+        // Refresh the iframe/app to re-run auth check
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
   // Real-time transcript updates
   useEffect(() => {
     if (isRecording) {
@@ -159,14 +173,21 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                 </Button>
               </>
             ) : (
-              <Button asChild variant="outline" className="rounded-full">
-                <a
-                  href={`/api/auth/x/authorize?return_to=${encodeURIComponent(`https://whop.com/experiences/${experienceId}`)}&ngrok-skip-browser-warning=true`}
-                  target="_top"
-                  rel="noopener noreferrer"
-                >
-                  Login with X
-                </a>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => {
+                  const returnTo = `https://whop.com/experiences/${experienceId}`;
+                  const authUrl = `/api/auth/x/authorize?mode=popup&return_to=${encodeURIComponent(returnTo)}`;
+                  const w = 520, h = 720;
+                  const topWin = window.top || window;
+                  const y = topWin.outerHeight ? Math.max(0, (topWin.outerHeight - h) / 2) : 50;
+                  const x = topWin.outerWidth ? Math.max(0, (topWin.outerWidth - w) / 2) : 50;
+                  window.open(authUrl, 'x-auth', `popup=1,width=${w},height=${h},left=${x},top=${y}`);
+                }}
+              >
+                Login with X
               </Button>
             )}
           </div>

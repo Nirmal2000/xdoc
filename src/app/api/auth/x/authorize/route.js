@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
   const url = new URL(req.url);
   const returnTo = url.searchParams.get('return_to');
+  const mode = url.searchParams.get('mode');
   const clientId = process.env.X_CLIENT_ID;
   const redirectUri = process.env.X_REDIRECT_URI;
 
@@ -15,7 +16,7 @@ export async function GET(req) {
 
   const codeVerifier = generateCodeVerifier();
   // For plain method, code_challenge === code_verifier
-  const state = createSignedState({ codeVerifier, returnTo, ttlSeconds: 600 });
+  const state = createSignedState({ codeVerifier, returnTo, ttlSeconds: 600, popupMode: mode === 'popup' });
   const authorizeUrl = buildAuthorizeUrl({
     clientId,
     redirectUri,

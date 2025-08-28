@@ -36,10 +36,11 @@ function getStateSecret() {
   return secret;
 }
 
-export function createSignedState({ codeVerifier, returnTo, ttlSeconds = 600 }) {
+export function createSignedState({ codeVerifier, returnTo, ttlSeconds = 600, popupMode = false }) {
   const payload = {
     cv: codeVerifier,
     rt: returnTo || null,
+    pm: popupMode ? 1 : 0,
     ts: Math.floor(Date.now() / 1000),
     n: crypto.randomBytes(8).toString('hex'),
     t: ttlSeconds,
@@ -69,7 +70,7 @@ export function verifySignedState(stateToken) {
   if (payload.ts + (payload.t || 600) < now) {
     throw new Error('State expired');
   }
-  return payload; // { cv, rt, ts, n, t }
+  return payload; // { cv, rt, pm, ts, n, t }
 }
 
 export async function exchangeCodeForToken({ code, clientId, redirectUri, codeVerifier }) {

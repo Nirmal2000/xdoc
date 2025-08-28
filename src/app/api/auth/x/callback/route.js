@@ -28,10 +28,12 @@ export async function GET(req) {
   // Stateless state verification
   let codeVerifier;
   let returnTo;
+  let popupMode = false;
   try {
     const payload = verifySignedState(state);
     codeVerifier = payload.cv;
     returnTo = payload.rt || undefined;
+    popupMode = !!payload.pm;
   } catch (e) {
     return new Response('Invalid or expired OAuth state', { status: 400 });
   }
@@ -49,9 +51,7 @@ export async function GET(req) {
     const accessExpires = new Date(now + (token.expires_in ?? 7200) * 1000);
     const refreshExpires = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    const dest = returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
-    const res = NextResponse.redirect(dest, { status: 302 });
-    // Set CHIPS-partitioned cookies for third-party iframe support
+    // Build Set-Cookie headers (CHIPS/partitioned)
     const accessCookie = [
       `x_access_token=${encodeURIComponent(token.access_token)}`,
       'Path=/',
@@ -61,8 +61,7 @@ export async function GET(req) {
       'SameSite=None',
       'Partitioned',
     ].join('; ');
-    res.headers.append('Set-Cookie', accessCookie);
-
+    const cookieHeaders = [accessCookie];
     if (token.refresh_token) {
       const refreshCookie = [
         `x_refresh_token=${encodeURIComponent(token.refresh_token)}`,
@@ -73,10 +72,36 @@ export async function GET(req) {
         'SameSite=None',
         'Partitioned',
       ].join('; ');
-      res.headers.append('Set-Cookie', refreshCookie);
+      cookieHeaders.push(refreshCookie);
     }
-    // Stateless: no transient cookies to clear
-    return res;
+
+    if (popupMode) {
+      // Render a tiny handoff page that notifies the opener (the iframe window) and closes
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Login Complete</title></head><body>
+<script>
+(function(){
+  try {
+    var msg = { type: 'x-auth', status: 'ok' };
+    var targetOrigin = window.location.origin;
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(msg, targetOrigin);
+    }
+  } catch (e) {}
+  try { window.close(); } catch(e) {}
+  // Fallback redirect if popup couldn't close
+  try { window.location.replace(${JSON.stringify(returnTo || '/')}); } catch(e) {}
+})();
+</script>
+</body></html>`;
+      const res = new NextResponse(html, { status: 200, headers: { 'Content-Type': 'text/html' } });
+      cookieHeaders.forEach((c) => res.headers.append('Set-Cookie', c));
+      return res;
+    } else {
+      const dest = returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
+      const res = NextResponse.redirect(dest, { status: 302 });
+      cookieHeaders.forEach((c) => res.headers.append('Set-Cookie', c));
+      return res;
+    }
   } catch (e) {
     return new Response(`Token exchange error: ${e.message}`, { status: 500 });
   }

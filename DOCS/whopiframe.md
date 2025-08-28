@@ -65,3 +65,68 @@ export default function Home() {
 	
 	return <button onClick={openLink}>Click me to open Google</button>;
 }
+
+---
+
+@whop/iframe
+Official SDK to power communications of a Whop embedded app and the host frame. Use this for native js implementations for Whop Apps. If you are using react we recommend the usage of @whop/react instead.
+
+Setup
+// lib/iframe-sdk.ts
+import { createSdk } from "@whop/iframe";
+
+export const iframeSdk = createSdk({
+	appId: process.env.NEXT_PUBLIC_WHOP_APP_ID,
+});
+Usage
+Now you can import your iframeSdk instance and use it to react to user events
+
+// index.ts
+import { iframeSdk } from "@/lib/iframe-sdk";
+
+const navigationButtonElement = document.querySelector("button");
+
+if (navigationButtonElement && navigationButtonElement.dataset.listenerAttached !== "true") {
+	navigationButtonElement.addEventListener("click", () => {
+		iframeSdk.openExternalUrl({ url: "https://example.com" });
+	});
+	
+	navigationButtonElement.dataset.listenerAttached = "true";
+}
+Readme
+
+---
+
+Popup OAuth + postMessage handoff (for iframes)
+
+- Flow overview:
+  - Inside the iframe, open the provider authorize URL in a popup window.
+  - The popup completes OAuth on your app’s domain and hits your callback.
+  - The callback sets session cookies and responds with a small page that posts a message back to the opener (the iframe) and closes itself.
+  - The iframe listens for that message and reloads (or updates UI), now authenticated.
+
+- Parent page (optional):
+  - If you control the parent page (Whop experience), you can also listen for `{ type: 'x-auth', status: 'ok' }` on `window` and programmatically reload the iframe if needed.
+
+Example parent listener (if you own the host page):
+
+```html
+<script>
+  window.addEventListener('message', (e) => {
+    if (e?.data && e.data.type === 'x-auth' && e.data.status === 'ok') {
+      // Find the iframe and reload it
+      const iframe = document.querySelector('iframe[src*="your-app-domain"]');
+      if (iframe) {
+        iframe.contentWindow.location.reload();
+      } else {
+        // Fallback: reload page
+        window.location.reload();
+      }
+    }
+  });
+  </script>
+```
+
+Notes
+- This pattern avoids relying on third‑party cookies for the round‑trip, and works in Chromium and Safari.
+- For Safari: cookies issued by the callback are first‑party (on your domain), so your iframe can use them after reload. If Safari still blocks third‑party cookies, keep tokens server‑side and call your server for X actions.
