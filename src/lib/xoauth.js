@@ -27,6 +27,51 @@ export function buildAuthorizeUrl({ clientId, redirectUri, codeChallenge, state 
   return `https://x.com/i/oauth2/authorize?${params.toString()}`;
 }
 
+// Stateless signed state helpers
+function getStateSecret() {
+  const secret = process.env.X_STATE_SECRET || process.env.X_CLIENT_SECRET;
+  if (!secret) {
+    throw new Error('Missing X_STATE_SECRET (or X_CLIENT_SECRET) for state signing');
+  }
+  return secret;
+}
+
+export function createSignedState({ codeVerifier, returnTo, ttlSeconds = 600 }) {
+  const payload = {
+    cv: codeVerifier,
+    rt: returnTo || null,
+    ts: Math.floor(Date.now() / 1000),
+    n: crypto.randomBytes(8).toString('hex'),
+    t: ttlSeconds,
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', getStateSecret())
+    .update(payloadB64)
+    .digest('base64url');
+  return `v1.${payloadB64}.${sig}`;
+}
+
+export function verifySignedState(stateToken) {
+  if (!stateToken || typeof stateToken !== 'string') throw new Error('Missing state');
+  const parts = stateToken.split('.');
+  if (parts.length !== 3 || parts[0] !== 'v1') throw new Error('Invalid state format');
+  const [_, payloadB64, sig] = parts;
+  const expectedSig = crypto
+    .createHmac('sha256', getStateSecret())
+    .update(payloadB64)
+    .digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {
+    throw new Error('State signature mismatch');
+  }
+  const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.ts + (payload.t || 600) < now) {
+    throw new Error('State expired');
+  }
+  return payload; // { cv, rt, ts, n, t }
+}
+
 export async function exchangeCodeForToken({ code, clientId, redirectUri, codeVerifier }) {
   const clientSecret = process.env.X_CLIENT_SECRET;
   const baseBody = {

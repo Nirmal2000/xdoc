@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { exchangeCodeForToken } from '@/lib/xoauth';
+import { exchangeCodeForToken, verifySignedState } from '@/lib/xoauth';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,16 +25,15 @@ export async function GET(req) {
   }
 
   const jar = await cookies();
-  const savedState = jar.get('x_oauth_state')?.value;
-  const codeVerifier = jar.get('x_code_verifier')?.value;
-  const returnTo = jar.get('x_return_to')?.value;
-
-  if (!savedState || !codeVerifier) {
-    return new Response('OAuth session expired. Please try again.', { status: 400 });
-  }
-
-  if (state !== savedState) {
-    return new Response('Invalid OAuth state', { status: 400 });
+  // Stateless state verification
+  let codeVerifier;
+  let returnTo;
+  try {
+    const payload = verifySignedState(state);
+    codeVerifier = payload.cv;
+    returnTo = payload.rt || undefined;
+  } catch (e) {
+    return new Response('Invalid or expired OAuth state', { status: 400 });
   }
 
   try {
@@ -69,12 +68,7 @@ export async function GET(req) {
         expires: refreshExpires,
       });
     }
-    // Cleanup transient cookies
-    res.cookies.set('x_oauth_state', '', { path: '/', expires: new Date(0) });
-    res.cookies.set('x_code_verifier', '', { path: '/', expires: new Date(0) });
-    if (returnTo) {
-      res.cookies.set('x_return_to', '', { path: '/', expires: new Date(0) });
-    }
+    // Stateless: no transient cookies to clear
     return res;
   } catch (e) {
     return new Response(`Token exchange error: ${e.message}`, { status: 500 });
