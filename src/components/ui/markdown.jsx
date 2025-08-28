@@ -7,6 +7,13 @@ import remarkGfm from "remark-gfm"
 import { CodeBlock, CodeBlockCode } from "./code-block"
 
 function parseMarkdownIntoBlocks(markdown) {
+  console.log('[Markdown Debug] Input to parseMarkdownIntoBlocks:', {
+    type: typeof markdown,
+    value: markdown,
+    length: markdown?.length,
+    isString: typeof markdown === 'string'
+  });
+  
   const tokens = marked.lexer(markdown)
   return tokens.map((token) => token.raw);
 }

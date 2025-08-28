@@ -1,4 +1,5 @@
-import "./globals.css";
+import { WhopIframeSdkProvider } from "@whop/react";import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata = {
 	title: "Xdoc",
@@ -11,7 +12,8 @@ export default function RootLayout({
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body className="dark">
-				{children}
+				<WhopIframeSdkProvider>{children}</WhopIframeSdkProvider>
+				<Toaster position="top-right" />
 			</body>
 		</html>
 	);

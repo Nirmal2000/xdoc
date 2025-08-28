@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect, memo } from 'react';
 import {
   ChatContainerContent,
   ChatContainerRoot,
@@ -17,10 +17,20 @@ import {
   PromptInputActions,
   PromptInputTextarea,
 } from "@/components/ui/prompt-input"
+import { DotsLoader } from "@/components/ui/loader"
 import { ScrollButton } from "@/components/ui/scroll-button"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/reasoning"
+import { Source, SourceContent, SourceTrigger } from "@/components/ui/source"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { useVoiceRecording } from "@/hooks/useVoiceRecording"
+import { useXAuth } from "@/hooks/useXAuth"
+import { useIframeSdk } from "@whop/react"
+import { TweetMockup } from "@/components/ui/tweet-mockup"
+import { StreamingMessage } from "@/components/ui/streaming-message"
+import QuickTasks from "@/components/quick-tasks"
 import {
   ArrowUp,
   Copy,
@@ -34,15 +44,99 @@ import {
   Trash,
 } from "lucide-react"
 
-export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId }) {
+export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId }) {
   const [prompt, setPrompt] = useState('');
+  const [messageVotes, setMessageVotes] = useState({}); // Track votes by message ID
+  const [isSearchEnabled, setIsSearchEnabled] = useState(false);
+  const { user: userInfo, checked: authChecked, logout: xLogout } = useXAuth();
+
+  // Voice recording hook
+  const { isRecording, transcripts, toggleRecording, getTranscriptText } = useVoiceRecording();
+
+  // Whop iframe SDK hook
+  const iframeSdk = useIframeSdk();
+
+  // Store original prompt when recording starts
+  const [originalPrompt, setOriginalPrompt] = useState('');
+
+  // Real-time transcript updates
+  useEffect(() => {
+    if (isRecording) {
+      const realTimeTranscript = getTranscriptText();
+      if (realTimeTranscript.trim()) {
+        // Append real-time transcript to original prompt
+        setPrompt(originalPrompt + (originalPrompt ? ' ' : '') + realTimeTranscript);
+      } else {
+        // If no transcript yet, keep original prompt
+        setPrompt(originalPrompt);
+      }
+    }
+  }, [transcripts, isRecording, getTranscriptText, originalPrompt]);
 
   const handleSubmit = () => {
     if (prompt && prompt.trim()) {
-      onSubmit(prompt.trim());
+      // Don't allow submission if conversation is being created
+      if (currentConversationId?.startsWith('temp_')) {
+        return;
+      }
+      onSubmit(prompt.trim(), { search: isSearchEnabled });
       setPrompt('');
     }
   };
+
+  const handleSearchToggle = () => {
+    setIsSearchEnabled(prev => !prev);
+  };
+
+  const handleVoiceRecording = () => {
+    if (isRecording) {
+      // Stop recording - transcript is already updated in real-time
+      toggleRecording();
+      const transcript = getTranscriptText();
+      if (transcript.trim()) {
+        toast.success('Voice transcribed successfully');
+      }
+      setOriginalPrompt(''); // Reset original prompt
+    } else {
+      // Start recording - store current prompt as original
+      setOriginalPrompt(prompt);
+      toggleRecording();
+    }
+  };
+
+  const handleCopyMessage = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Message copied to clipboard');
+  };
+
+  const handleUpvote = (messageId) => {
+    setMessageVotes(prev => ({
+      ...prev,
+      [messageId]: prev[messageId] === 'up' ? null : 'up'
+    }));
+    toast.success('Feedback received');
+  };
+
+  const handleDownvote = (messageId) => {
+    setMessageVotes(prev => ({
+      ...prev,
+      [messageId]: prev[messageId] === 'down' ? null : 'down'
+    }));
+    toast.success('Feedback received');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await xLogout();
+      // If embedded, reload top-level to ensure a clean state
+      if (typeof window !== 'undefined' && window.top) {
+        window.top.location.reload();
+      } else if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } catch (_) {}
+  };
+
   return (
     <main className="flex h-screen flex-col overflow-hidden">
       <header className="bg-background z-10 flex h-16 w-full shrink-0 items-center gap-2 border-b px-4">
@@ -50,109 +144,280 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
         <div className="flex flex-row items-center gap-2">
             <img src="/logo.png" alt="X doc" className="h-8 w-auto" />
           </div>
+          <div className="ml-auto flex items-center gap-2">
+            {!authChecked ? null : userInfo ? (
+              <>
+                {userInfo?.profile_image_url ? (
+                  <img
+                    src={userInfo.profile_image_url}
+                    alt={userInfo?.username || 'User'}
+                    className="h-8 w-8 rounded-full border"
+                  />
+                ) : null}
+                <Button variant="outline" className="rounded-full" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button asChild variant="outline" className="rounded-full">
+                <a
+                  href={`/api/auth/x/authorize?return_to=${encodeURIComponent(`https://whop.com/experiences/${experienceId}`)}&ngrok-skip-browser-warning=true`}
+                  target="_top"
+                  rel="noopener noreferrer"
+                >
+                  Login with X
+                </a>
+              </Button>
+            )}
+          </div>
       </header>
 
       <div className="relative flex-1 overflow-y-auto">
         <ChatContainerRoot className="h-full">
           <ChatContainerContent className="space-y-0 px-5 py-12">
             {messages.length === 0 ? (
-              <div className="mx-auto max-w-3xl w-full text-left px-6">
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold mb-4">Quick Tasks</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div
-                      className="relative overflow-hidden cursor-pointer group"
-                      style={{ borderRadius: '1.27rem' }}
-                      onClick={() => {
-                        const prompt = "Please analyze my X/Twitter account comprehensively. Evaluate my content strategy, posting frequency, engagement patterns, audience demographics, content quality, and provide actionable recommendations for improvement. Include metrics analysis, competitor comparison, and specific suggestions to grow my presence on X.";
-                        setPrompt(prompt);
-                      }}
-                    >
-                      <img src="/eval.png" alt="Evaluate your X" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '1.27rem' }}></div>
-                      <div className="absolute bottom-4 left-4 text-white font-semibold">
-                        Evaluate your X
-                      </div>
-                    </div>
-                    <div
-                      className="relative overflow-hidden cursor-pointer group"
-                      style={{ borderRadius: '1.27rem' }}
-                      onClick={() => {
-                        const prompt = "Help me create a compelling X/Twitter persona. Based on my interests, goals, and target audience, develop a unique personality with consistent voice, tone, and communication style. Include bio suggestions, content themes, posting schedule, and engagement strategies that will make my profile stand out and attract the right followers.";
-                        setPrompt(prompt);
-                      }}
-                    >
-                      <img src="/persona.png" alt="Create Persona" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '1.27rem' }}></div>
-                      <div className="absolute bottom-4 left-4 text-white font-semibold">
-                        Create Persona
-                      </div>
-                    </div>
-                    <div
-                      className="relative overflow-hidden cursor-pointer group"
-                      style={{ borderRadius: '1.27rem' }}
-                      onClick={() => {
-                        const prompt = "Create a viral-worthy X/Twitter post for me. Analyze current trending topics, viral content patterns, and engagement strategies. Generate 3-5 different post variations with compelling hooks, emotional triggers, timing suggestions, and hashtag strategies. Include psychological triggers and formatting tips to maximize engagement and shares.";
-                        setPrompt(prompt);
-                      }}
-                    >
-                      <img src="/viraltweet.png" alt="Create Viral X" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '1.27rem' }}></div>
-                      <div className="absolute bottom-4 left-4 text-white font-semibold">
-                        Create Viral X
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Coming Soon</h2>
-                  <div className="custom-scrollbar flex space-x-2 overflow-x-auto pb-4">
-                    <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>
-                      <img src="/hastag.png" alt="tag Research" className="w-full h-full object-cover" style={{ borderRadius: '0.8rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '0.8rem' }}></div>
-                      <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
-                        Hashtag Search
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>
-                      <img src="/niche.png" alt="Niche News" className="w-full h-full object-cover" style={{ borderRadius: '0.8rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '0.8rem' }}></div>
-                      <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
-                        Niche News
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>
-                      <img src="/shadowban.png" alt="Shadowban Check" className="w-full h-full object-cover" style={{ borderRadius: '0.8rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '0.8rem' }}></div>
-                      <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
-                        Shadowban Check
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>
-                      <img src="/viral.png" alt="Viral News" className="w-full h-full object-cover" style={{ borderRadius: '0.8rem' }} />
-                      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '0.8rem' }}></div>
-                      <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
-                        Viral News
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <QuickTasks setPrompt={setPrompt} />
             ) : null}
             {messages.map((message, index) => {
               const isAssistant = message.role === "assistant";
+              const isTool = message.role === "tool";
               const isLastMessage = index === messages.length - 1;
               
-              // Extract text from parts array
-              const getMessageText = (msg) => {
+              // Handle tool messages (from database) - these are separate messages
+              if (isTool && message.parts) {
+                return message.parts.map((toolPart, toolPartIndex) => {
+                  // Handle tool-result for writeTweet
+                  if (toolPart.type === "tool-result" && toolPart.toolName === "writeTweet" && toolPart.output?.value?.content) {
+                    const tweetContent = toolPart.output.value.content;
+                    const threads = tweetContent.split('---').filter(t => t.trim());
+                    const key = `${message.id || index}-tool-${toolPartIndex}`;
+                    
+                    return (
+                      <Message
+                        key={key}
+                        className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 items-start"
+                      >
+                        <div className="group flex w-full flex-col gap-0">
+                          <div className="mb-4 space-y-4">
+                            {threads.map((thread, i) => (
+                              <div key={`${key}-thread-${i}`} className="relative">
+                                {/* Thread connector line */}
+                                {i > 0 && (
+                                  <div className="absolute left-[35px] top-0 w-0.5 bg-border h-4 -mt-2" />
+                                )}
+                                
+                                <TweetMockup
+                                  index={i}
+                                  isConnectedBefore={i > 0}
+                                  isConnectedAfter={i < threads.length - 1}
+                                  threads={threads}
+                                  text={thread.trim()}
+                                  account={{
+                                    name: userInfo?.name || 'Your Name',
+                                    username: userInfo?.username || 'your_username',
+                                    verified: false,
+                                    avatar: userInfo?.profile_image_url
+                                  }}
+                                  onApply={(text, allThreads, index) => {
+                                    navigator.clipboard.writeText(text);
+                                    toast.success('Tweet copied to clipboard!');
+                                  }}
+                                >
+                                  {/* No animation for database-loaded tweets */}
+                                  <StreamingMessage 
+                                    text={thread.trim()} 
+                                    animate={false}
+                                    speed={30}
+                                  />
+                                </TweetMockup>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Message>
+                    );
+                  }
+                  return null;
+                }).filter(Boolean);
+              }             
+              
+              // Handle assistant and user messages
+              if (!isTool) {
+                // Process parts in their original order for interleaved display
+                const renderMessageParts = (msg) => {
+                  if (!msg.parts || !Array.isArray(msg.parts)) {
+                    return null;
+                  }
+
+                  return msg.parts.map((part, partIndex) => {
+                  const key = `${msg.id}-part-${partIndex}`;
+
+                  // Handle text parts
+                  if (part.type === 'text' && part.text) {
+                    return (
+                      <MessageContent
+                        key={key}
+                        className="text-foreground prose flex-1 rounded-lg bg-transparent p-0 mb-2"
+                        markdown
+                      >
+                        {part.text}
+                      </MessageContent>
+                    );
+                  }
+
+                  // Handle reasoning parts
+                  if (part.type === 'reasoning' && part.text) {
+                    return (
+                      <div key={key} className="mb-2">
+                        <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
+                          <ReasoningTrigger>Thinking...</ReasoningTrigger>
+                          <ReasoningContent
+                            markdown
+                            className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700"
+                          >
+                            {part.text}
+                          </ReasoningContent>
+                        </Reasoning>
+                      </div>
+                    );
+                  }
+
+                  // Handle tweet tool output parts
+                  if (part.type === 'data-tool-output' && part.data) {
+                    const tweetData = part.data;
+                    
+                    // Handle loading state (processing)
+                    if (tweetData.status === 'processing') {
+                      return (
+                        <div key={key} className="mb-4">
+                          <TweetMockup 
+                            index={tweetData.index || 0}
+                            isLoading={true}
+                            account={{
+                              name: userInfo?.name || 'Your Name',
+                              username: userInfo?.username || 'your_username',
+                              verified: false,
+                              avatar: userInfo?.profile_image_url
+                            }}
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    // Handle error state
+                    if (tweetData.status === 'error') {
+                      return (
+                        <div key={key} className="mb-4">
+                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <p className="text-red-600 dark:text-red-400 text-sm">
+                              {tweetData.text || 'An error occurred while generating the tweet.'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle tweet content for all other statuses (streaming, complete, etc.)
+                    if (tweetData.text) {
+                      const threads = tweetData.text.split('---').filter(t => t.trim());
+                      const isStreaming = tweetData.status === 'streaming' && isLastMessage;
+                      
+                      return (
+                        <div key={key} className="mb-4 space-y-4">
+                          {threads.map((thread, i) => (
+                            <div key={`${key}-thread-${i}`} className="relative">
+                              {/* Thread connector line */}
+                              {i > 0 && (
+                                <div className="absolute left-[35px] top-0 w-0.5 bg-border h-4 -mt-2" />
+                              )}
+                              
+                              <TweetMockup
+                                index={i}
+                                isConnectedBefore={i > 0}
+                                isConnectedAfter={i < threads.length - 1}
+                                threads={threads}
+                                text={thread.trim()}
+                                account={{
+                                  name: userInfo?.name || 'Your Name',
+                                  username: userInfo?.username || 'your_username',
+                                  verified: false,
+                                  avatar: userInfo?.profile_image_url
+                                }}
+                                onApply={(text, allThreads, index) => {
+                                  navigator.clipboard.writeText(text);
+                                  toast.success('Tweet copied to clipboard!');
+                                }}
+                              >
+                                {/* Only animate streaming for the last thread of the last message */}
+                                <StreamingMessage 
+                                  text={thread.trim()} 
+                                  animate={isStreaming && i === threads.length - 1}
+                                  speed={30}
+                                />
+                              </TweetMockup>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    
+                    // Fallback for data-tool-output parts without text content
+                    return (
+                      <div key={key} className="mb-4">
+                        <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                          Tweet generation in progress...
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Handle data sources parts
+                  if (part.type === 'data-sources' && part.data && part.data.length > 0) {
+                    return (
+                      <div key={key} className="mt-2 mb-2 flex gap-2 overflow-x-auto pb-2">
+                        {part.data.map((source, sourceIndex) => (
+                          <div key={`${key}-source-${sourceIndex}`} className="flex-shrink-0">
+                            <Source href={source.url}>
+                              <SourceTrigger showFavicon />
+                              <SourceContent
+                                title={source.url}
+                                description={`${source.sourceType} source`}
+                              />
+                            </Source>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  // Return null for unknown part types
+                  return null;
+                });
+              };
+
+              // Fallback for messages without parts structure
+              const getFallbackContent = (msg) => {
                 if (msg.parts && Array.isArray(msg.parts)) {
                   const textPart = msg.parts.find(part => part.type === 'text' && part.text);
                   return textPart ? textPart.text : '';
                 }
-                return '';
+                console.log('[Chat Content] Fallback content debug:', {
+                  msgContent: msg.content,
+                  msgContentType: typeof msg.content,
+                  msgContentStringified: JSON.stringify(msg.content)
+                });
+                return msg.content || '';
               };
+
+              const messageContent = renderMessageParts(message);
+              const fallbackText = getFallbackContent(message);
               
-              const messageText = getMessageText(message);
+              console.log('[Chat Content] Message render debug:', {
+                messageId: message.id,
+                hasMessageContent: messageContent && messageContent.length > 0,
+                fallbackText,
+                fallbackTextType: typeof fallbackText
+              });
 
               return (
                 <Message
@@ -164,12 +429,19 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                 >
                   {isAssistant ? (
                     <div className="group flex w-full flex-col gap-0">
-                      <MessageContent
-                        className="text-foreground prose flex-1 rounded-lg bg-transparent p-0"
-                        markdown
-                      >
-                        {messageText}
-                      </MessageContent>
+                      {/* Render parts in their original order */}
+                      {messageContent && messageContent.length > 0 ? (
+                        messageContent
+                      ) : (
+                        /* Fallback for messages without proper parts structure */
+                        <MessageContent
+                          className="text-foreground prose flex-1 rounded-lg bg-transparent p-0"
+                          markdown
+                        >
+                          {fallbackText}
+                        </MessageContent>
+                      )}
+                      
                       <MessageActions
                         className={cn(
                           "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
@@ -181,6 +453,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                             variant="ghost"
                             size="icon"
                             className="rounded-full"
+                            onClick={() => handleCopyMessage(fallbackText)}
                           >
                             <Copy />
                           </Button>
@@ -190,8 +463,11 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                             variant="ghost"
                             size="icon"
                             className="rounded-full"
+                            onClick={() => handleUpvote(message.id)}
                           >
-                            <ThumbsUp />
+                            <ThumbsUp className={cn(
+                              messageVotes[message.id] === 'up' && "fill-white"
+                            )} />
                           </Button>
                         </MessageAction>
                         <MessageAction tooltip="Downvote" delayDuration={100}>
@@ -199,45 +475,31 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                             variant="ghost"
                             size="icon"
                             className="rounded-full"
+                            onClick={() => handleDownvote(message.id)}
                           >
-                            <ThumbsDown />
+                            <ThumbsDown className={cn(
+                              messageVotes[message.id] === 'down' && "fill-red-400"
+                            )} />
                           </Button>
                         </MessageAction>
                       </MessageActions>
                     </div>
                   ) : (
                     <div className="group flex flex-col items-end gap-1">
-                      <MessageContent className="bg-muted text-primary max-w-[85%] rounded-3xl px-5 py-2.5 sm:max-w-[75%]">
-                        {messageText}
+                      <MessageContent className="bg-muted text-primary max-w-[95%] rounded-3xl px-5 py-2.5 sm:max-w-[90%]">
+                        {fallbackText}
                       </MessageContent>
                       <MessageActions
                         className={cn(
                           "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                         )}
                       >
-                        <MessageAction tooltip="Edit" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Pencil />
-                          </Button>
-                        </MessageAction>
-                        <MessageAction tooltip="Delete" delayDuration={100}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full"
-                          >
-                            <Trash />
-                          </Button>
-                        </MessageAction>
                         <MessageAction tooltip="Copy" delayDuration={100}>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="rounded-full"
+                            onClick={() => handleCopyMessage(fallbackText)}
                           >
                             <Copy />
                           </Button>
@@ -247,7 +509,9 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                   )}
                 </Message>
               );
+              } // Close the if (!isTool) block
             })}
+            {status === "submitted" && <LoadingMessage />}
           </ChatContainerContent>
           <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
             <ScrollButton className="shadow-sm" />
@@ -266,8 +530,9 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
           >
             <div className="flex flex-col">
               <PromptInputTextarea
-                placeholder="Ask anything"
+                placeholder={currentConversationId?.startsWith('temp_') ? "Creating conversation..." : "Ask anything"}
                 className="min-h-[44px] pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
+                disabled={currentConversationId?.startsWith('temp_')}
               />
 
               <PromptInputActions className="mt-5 flex w-full items-center justify-between gap-2 px-3 pb-3">
@@ -284,7 +549,15 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                   </PromptInputAction>
 
                   <PromptInputAction tooltip="Search">
-                    <Button type="button" variant="outline" className="rounded-full">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className={cn(
+                        "rounded-full",
+                        isSearchEnabled && "bg-white text-black hover:bg-gray-200 hover:text-black"
+                      )}
+                      onClick={handleSearchToggle}
+                    >
                       <Globe size={18} />
                       Search
                     </Button>
@@ -302,12 +575,16 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                   </PromptInputAction>
                 </div>
                 <div className="flex items-center gap-2">
-                  <PromptInputAction tooltip="Voice input">
+                  <PromptInputAction tooltip={isRecording ? "Stop recording" : "Voice input"}>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-9 rounded-full"
+                      className={cn(
+                        "size-9 rounded-full",
+                        isRecording && "bg-red-500 text-white hover:bg-red-600"
+                      )}
+                      onClick={handleVoiceRecording}
                     >
                       <Mic size={18} />
                     </Button>
@@ -315,7 +592,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
 
                   <Button
                     size="icon"
-                    disabled={!prompt.trim() || status === 'streaming' || status === 'submitted'}
+                    disabled={!prompt.trim() || status === 'streaming' || status === 'submitted' || currentConversationId?.startsWith('temp_')}
                     onClick={handleSubmit}
                     className="size-9 rounded-full"
                   >
@@ -334,3 +611,15 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
     </main>
   );
 }
+
+const LoadingMessage = memo(() => (
+  <Message className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-6">
+    <div className="group flex w-full flex-col gap-0">
+      <div className="text-foreground prose w-full min-w-0 flex-1 rounded-lg bg-transparent p-0">
+        <DotsLoader />
+      </div>
+    </div>
+  </Message>
+))
+
+LoadingMessage.displayName = "LoadingMessage"

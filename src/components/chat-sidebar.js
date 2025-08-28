@@ -45,31 +45,71 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
   const handleDeleteConversation = async (conversationId, e) => {
     e.stopPropagation();
     
+    // Store original conversation data for rollback
+    const conversationToDelete = conversations.find(c => c.id === conversationId);
+    const originalIndex = conversations.findIndex(c => c.id === conversationId);
+    
+    if (!conversationToDelete) return;
+    
+    // Optimistic update - remove immediately from UI
+    setConversations(prev => prev.filter(c => c.id !== conversationId));
+    
+    // If deleted conversation was current, reset UI
+    let wasCurrentConversation = false;
+    if (conversationId === currentConversationId && onSelectConversation) {
+      wasCurrentConversation = true;
+      onSelectConversation(null);
+    }
+    
     try {
       const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
         method: 'DELETE',
       });
       
       if (!response.ok) {
-        console.error('Failed to delete conversation');
-        return;
-      }      
-      loadConversations();      
-      if (conversationId === currentConversationId && onSelectConversation) {
-        onSelectConversation(null);
+        throw new Error('Failed to delete conversation');
       }
+      
+      toast.success('Conversation deleted');
     } catch (error) {
       console.error('Error deleting conversation:', error);
+      toast.error('Failed to delete conversation');
+      
+      // Rollback - restore conversation to original position
+      setConversations(prev => {
+        const restored = [...prev];
+        restored.splice(originalIndex, 0, conversationToDelete);
+        return restored;
+      });
+      
+      // Restore current conversation if it was the deleted one
+      if (wasCurrentConversation && onSelectConversation) {
+        onSelectConversation(conversationId);
+      }
     }
   };
 
-  // Expose loadConversations to parent
+  // Expose functions to parent
   useEffect(() => {
     window.loadConversations = loadConversations;
+    
+    window.addTempConversation = (tempConversation) => {
+      setConversations(prev => [tempConversation, ...prev]);
+    };
+    
+    window.replaceTempConversation = (tempId, realConversation) => {
+      setConversations(prev => prev.map(c => 
+        c.id === tempId ? realConversation : c
+      ));
+    };
+    
+    window.removeTempConversation = (tempId) => {
+      setConversations(prev => prev.filter(c => c.id !== tempId));
+    };
   }, []);
 
   return (
-    <Sidebar>
+    <Sidebar variant="floating" collapsible="offcanvas">
       <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-2 py-4">
         <div className="flex flex-row items-center gap-2 px-2">
           <img src="/logo.png" alt="X Doctor" className="h-8 w-auto" />
@@ -98,22 +138,30 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
               {conversations.map((conversation) => (
                 <div key={conversation.id} className="relative group">
                   <SidebarMenuButton
-                    onClick={() => onSelectConversation(conversation.id)}
+                    onClick={() => conversation.status !== 'creating' && onSelectConversation(conversation.id)}
                     className={cn(
                       "w-full pr-10",
-                      currentConversationId === conversation.id && "bg-accent"
+                      currentConversationId === conversation.id && "bg-accent",
+                      conversation.status === 'creating' && "opacity-50 cursor-wait"
                     )}
                   >
-                    <span>{conversation.title}</span>
+                    <span className="flex items-center gap-2">
+                      {conversation.status === 'creating' && (
+                        <div className="size-3 animate-spin rounded-full border border-current border-r-transparent" />
+                      )}
+                      {conversation.title}
+                    </span>
                   </SidebarMenuButton>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 size-6 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
-                    onClick={(e) => handleDeleteConversation(conversation.id, e)}
-                  >
-                    <Trash2 className="size-3 text-red-500" />
-                  </Button>
+                  {conversation.status !== 'creating' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 size-6 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
+                      onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                    >
+                      <Trash2 className="size-3 text-red-500" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </SidebarMenu>
