@@ -1,20 +1,20 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/lib/xoauth';
+import { getSession, deleteSession } from '@/lib/oauth-sessions';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state');
+  const sessionId = searchParams.get('state'); // X returns sessionId as state
   const error = searchParams.get('error');
 
   if (error) {
     return new Response(`Authorization failed: ${error}`, { status: 400 });
   }
-  if (!code || !state) {
-    return new Response('Missing code or state', { status: 400 });
+  if (!code || !sessionId) {
+    return new Response('Missing code or session ID', { status: 400 });
   }
 
   const clientId = process.env.X_CLIENT_ID;
@@ -24,25 +24,21 @@ export async function GET(req) {
     return new Response('Missing X OAuth env: X_CLIENT_ID or X_REDIRECT_URI', { status: 500 });
   }
 
-  const jar = await cookies();
-  const savedState = jar.get('x_oauth_state')?.value;
-  const codeVerifier = jar.get('x_code_verifier')?.value;
-  const returnTo = jar.get('x_return_to')?.value;
-
-  if (!savedState || !codeVerifier) {
+  // Retrieve session from database instead of cookies
+  const session = await getSession(sessionId);
+  
+  if (!session) {
     return new Response('OAuth session expired. Please try again.', { status: 400 });
   }
 
-  if (state !== savedState) {
-    return new Response('Invalid OAuth state', { status: 400 });
-  }
+  console.log('[X CALLBACK Auth]', { sessionId, session });
 
   try {
     const token = await exchangeCodeForToken({
       code,
       clientId,
       redirectUri,
-      codeVerifier,
+      codeVerifier: session.codeVerifier, // Use from database session
     });
 
     // token contains: access_token, refresh_token (if offline.access), expires_in, token_type, scope
@@ -50,8 +46,10 @@ export async function GET(req) {
     const accessExpires = new Date(now + (token.expires_in ?? 7200) * 1000);
     const refreshExpires = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    const dest = returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
+    const dest = session.returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
     const res = NextResponse.redirect(dest, { status: 302 });
+    
+    // Set token cookies (these stay as cookies for compatibility)
     res.cookies.set('x_access_token', token.access_token, {
       httpOnly: true,
       sameSite: 'none',
@@ -69,15 +67,15 @@ export async function GET(req) {
         expires: refreshExpires,
       });
     }
-    // Cleanup transient cookies
-    res.cookies.set('x_oauth_state', '', { path: '/', expires: new Date(0) });
-    res.cookies.set('x_code_verifier', '', { path: '/', expires: new Date(0) });
-    if (returnTo) {
-      res.cookies.set('x_return_to', '', { path: '/', expires: new Date(0) });
-    }
+
+    // Cleanup session from database instead of cookies
+    await deleteSession(sessionId);
+    
     console.log('[X CALLBACK Auth]', { token, dest });
     return res;
   } catch (e) {
+    // Cleanup session on error too
+    await deleteSession(sessionId);
     return new Response(`Token exchange error: ${e.message}`, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { generateCodeVerifier, generateState, buildAuthorizeUrl } from '@/lib/xoauth';
+import { createSession } from '@/lib/oauth-sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,44 +17,22 @@ export async function GET(req) {
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
-  // For plain method, code_challenge === code_verifier
-  const authorizeUrl = buildAuthorizeUrl({
-    clientId,
-    redirectUri,
-    codeChallenge: codeVerifier,
-    state,
-  });
-  
-  const jar = await cookies();
-  // Persist state + verifier briefly for callback validation
-  const ttlSeconds = 10 * 60; // 10 minutes
-  const expires = new Date(Date.now() + ttlSeconds * 1000);
-  console.log('[X AUTHORIZE Auth]', { state, codeVerifier, expires });
+  try {
+    // Store session in database instead of cookies
+    const sessionId = await createSession(state, codeVerifier, returnTo);
+    console.log('[X AUTHORIZE Auth]', { state, codeVerifier, sessionId });
 
-  // Use NextResponse to ensure cookies are attached to the redirect response
-  const res = NextResponse.redirect(authorizeUrl, { status: 302 });
-  res.cookies.set('x_oauth_state', state, {
-    httpOnly: true,
-    sameSite: 'none',
-    secure: true,
-    path: '/',
-    expires,
-  });
-  res.cookies.set('x_code_verifier', codeVerifier, {
-    httpOnly: true,
-    sameSite: 'none',
-    secure: true,
-    path: '/',
-    expires,
-  });
-  if (returnTo) {
-    res.cookies.set('x_return_to', returnTo, {
-      httpOnly: true,
-      sameSite: 'none',
-      secure: true,
-      path: '/',
-      expires,
+    // Use sessionId as the state parameter for OAuth flow
+    const authorizeUrl = buildAuthorizeUrl({
+      clientId,
+      redirectUri,
+      codeChallenge: codeVerifier,
+      state: sessionId, // Use sessionId instead of actual state
     });
+
+    return NextResponse.redirect(authorizeUrl, { status: 302 });
+  } catch (error) {
+    console.error('[X AUTHORIZE ERROR]', error);
+    return new Response(`OAuth session creation failed: ${error.message}`, { status: 500 });
   }
-  return res;
 }
