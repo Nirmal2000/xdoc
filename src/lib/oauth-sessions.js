@@ -1,8 +1,8 @@
 import { supabase } from './supabase';
 import crypto from 'crypto';
 
-export async function createSession(state, codeVerifier, returnTo = null) {
-  const sessionId = crypto.randomUUID();
+export async function createSession(state, codeVerifier, returnTo = null, clientSessionId = null) {
+  const sessionId = clientSessionId || crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
   const { error } = await supabase

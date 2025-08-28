@@ -1,13 +1,20 @@
-import { cookies } from 'next/headers';
+import { deleteUserSession } from '@/lib/user-sessions';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
-  const jar = await cookies();
-  jar.delete('x_access_token');
-  jar.delete('x_refresh_token');
-  jar.delete('x_oauth_state');
-  jar.delete('x_code_verifier');
-  return new Response(null, { status: 204 });
+export async function POST(req) {
+  try {
+    const { userSessionId } = await req.json();
+    
+    if (userSessionId) {
+      // Delete user session from database
+      await deleteUserSession(userSessionId);
+    }
+    
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    console.error('[X LOGOUT ERROR]', error);
+    return new Response(null, { status: 204 }); // Always succeed for logout
+  }
 }
 

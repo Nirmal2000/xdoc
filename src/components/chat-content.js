@@ -50,6 +50,13 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const { user: userInfo, checked: authChecked, logout: xLogout } = useXAuth();
 
+  // Generate and save sessionId for OAuth
+  const handleLogin = () => {
+    const sessionId = crypto.randomUUID();
+    localStorage.setItem('x_user_session_id', sessionId);
+    return `/api/auth/x/authorize?return_to=${encodeURIComponent(`https://whop.com/experiences/${experienceId}`)}&sessionId=${sessionId}&ngrok-skip-browser-warning=true`;
+  };
+
   // Voice recording hook
   const { isRecording, transcripts, toggleRecording, getTranscriptText } = useVoiceRecording();
 
@@ -161,7 +168,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
             ) : (
               <Button asChild variant="outline" className="rounded-full">
                 <a
-                  href={`/api/auth/x/authorize?return_to=${encodeURIComponent(`https://whop.com/experiences/${experienceId}`)}&ngrok-skip-browser-warning=true`}
+                  href={handleLogin()}
                   target="_top"
                   rel="noopener noreferrer"
                 >

@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { refreshAccessToken } from '@/lib/xoauth';
+import { getUserSession, updateUserSessionTokens } from '@/lib/user-sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,46 +18,62 @@ async function fetchMe(accessToken) {
   return res.json();
 }
 
-export async function GET() {
-  const jar = await cookies();
-  let accessToken = jar.get('x_access_token')?.value;
-  const refreshToken = jar.get('x_refresh_token')?.value;
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const userSessionId = searchParams.get('userSessionId');
   const clientId = process.env.X_CLIENT_ID;
-  console.log('[X Auth]', { accessToken, refreshToken, clientId })
-  if (!accessToken && !refreshToken) {
+  
+  console.log('[X Auth]', { userSessionId, clientId });
+  
+  if (!userSessionId) {
+    return Response.json({ loggedIn: false });
+  }
+
+  // Get user session from database instead of cookies
+  const userSession = await getUserSession(userSessionId);
+  
+  if (!userSession) {
     return Response.json({ loggedIn: false });
   }
 
   try {
-    const me = await fetchMe(accessToken);
-    return Response.json({ loggedIn: true, user: me?.data || null });
+    const me = await fetchMe(userSession.accessToken);
+    
+    // Return user data from database (more reliable than API response)
+    return Response.json({ 
+      loggedIn: true, 
+      user: {
+        id: userSession.userId,
+        username: userSession.username,
+        name: userSession.name,
+        profile_image_url: userSession.profileImageUrl
+      }
+    });
   } catch (e) {
-    if ((e.status === 401 || e.status === 403) && refreshToken && clientId) {
+    if ((e.status === 401 || e.status === 403) && userSession.refreshToken && clientId) {
       try {
-        const token = await refreshAccessToken({ refreshToken, clientId });
-        const now = Date.now();
-        const accessExpires = new Date(now + (token.expires_in ?? 7200) * 1000);
-        const refreshExpires = new Date(now + 30 * 24 * 60 * 60 * 1000);
-
-        jar.set('x_access_token', token.access_token, {
-          httpOnly: true,
-          sameSite: 'none',
-          secure: true,
-          path: '/',
-          expires: accessExpires,
+        const token = await refreshAccessToken({ 
+          refreshToken: userSession.refreshToken, 
+          clientId 
         });
-        if (token.refresh_token) {
-          jar.set('x_refresh_token', token.refresh_token, {
-            httpOnly: true,
-            sameSite: 'none',
-            secure: true,
-            path: '/',
-            expires: refreshExpires,
-          });
-        }
+
+        // Update tokens in database instead of cookies
+        await updateUserSessionTokens(userSessionId, {
+          accessToken: token.access_token,
+          refreshToken: token.refresh_token,
+          tokenExpiresIn: token.expires_in ?? 7200
+        });
 
         const me = await fetchMe(token.access_token);
-        return Response.json({ loggedIn: true, user: me?.data || null });
+        return Response.json({ 
+          loggedIn: true, 
+          user: {
+            id: userSession.userId,
+            username: userSession.username,
+            name: userSession.name,
+            profile_image_url: userSession.profileImageUrl
+          }
+        });
       } catch (err) {
         // fallthrough to loggedOut
       }

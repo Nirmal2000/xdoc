@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/lib/xoauth';
 import { getSession, deleteSession } from '@/lib/oauth-sessions';
+import { createUserSession } from '@/lib/user-sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,38 +42,39 @@ export async function GET(req) {
       codeVerifier: session.codeVerifier, // Use from database session
     });
 
-    // token contains: access_token, refresh_token (if offline.access), expires_in, token_type, scope
-    const now = Date.now();
-    const accessExpires = new Date(now + (token.expires_in ?? 7200) * 1000);
-    const refreshExpires = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    const dest = session.returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
-    const res = NextResponse.redirect(dest, { status: 302 });
-    
-    // Set token cookies (these stay as cookies for compatibility)
-    res.cookies.set('x_access_token', token.access_token, {
-      httpOnly: true,
-      sameSite: 'none',
-      secure: true,
-      path: '/',
-      expires: accessExpires,
+    // Fetch user info from X API
+    const userInfoResponse = await fetch('https://api.x.com/2/users/me?user.fields=profile_image_url,username,name', {
+      headers: { Authorization: `Bearer ${token.access_token}` },
+      cache: 'no-store',
     });
 
-    if (token.refresh_token) {
-      res.cookies.set('x_refresh_token', token.refresh_token, {
-        httpOnly: true,
-        sameSite: 'none',
-        secure: true,
-        path: '/',
-        expires: refreshExpires,
-      });
+    if (!userInfoResponse.ok) {
+      throw new Error(`Failed to fetch user info: ${userInfoResponse.status}`);
     }
 
-    // Cleanup session from database instead of cookies
+    const userInfo = await userInfoResponse.json();
+    const userData = userInfo.data;
+
+    // Create user session in database using same sessionId (replaces cookies completely)
+    const userSessionId = await createUserSession({
+      userId: userData.id,
+      username: userData.username,
+      name: userData.name,
+      profileImageUrl: userData.profile_image_url,
+      accessToken: token.access_token,
+      refreshToken: token.refresh_token,
+      tokenExpiresIn: token.expires_in ?? 7200,
+      userSessionId: sessionId // Use the same sessionId from OAuth
+    });
+
+    // Cleanup OAuth session from database
     await deleteSession(sessionId);
+
+    // Redirect to returnTo URL without hash - client already knows sessionId
+    const dest = session.returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
     
-    console.log('[X CALLBACK Auth]', { token, dest });
-    return res;
+    console.log('[X CALLBACK Auth]', { userSessionId, sessionId, dest });
+    return NextResponse.redirect(dest, { status: 302 });
   } catch (e) {
     // Cleanup session on error too
     await deleteSession(sessionId);
