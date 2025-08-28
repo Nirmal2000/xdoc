@@ -7,10 +7,10 @@ import { getUserSession, updateUserSessionTokens } from '@/lib/user-sessions';
 import { refreshAccessToken } from '@/lib/xoauth';
 
 // Fetch tweets from X API
-async function fetchUserTweets(accessToken, maxResults = 50, paginationToken = null) {
+async function fetchUserTweets(accessToken, userId, maxResults = 50, paginationToken = null) {
   // Build URL with query parameters
   const params = new URLSearchParams({
-    'max_results': Math.min(maxResults, 100).toString(), // X API max is 100
+    'max_results': Math.min(maxResults, 5).toString(), // X API max is 100
     'tweet.fields': 'created_at,public_metrics,text,author_id',
     'user.fields': 'profile_image_url,username,name,verified',
     'expansions': 'author_id'
@@ -20,7 +20,8 @@ async function fetchUserTweets(accessToken, maxResults = 50, paginationToken = n
     params.append('pagination_token', paginationToken);
   }
   
-  const url = `https://api.x.com/2/users/me/tweets?${params.toString()}`;
+  // Use the user ID in the URL path instead of 'me'
+  const url = `https://api.x.com/2/users/${userId}/tweets?${params.toString()}`;
   
   const res = await fetch(url, {
     headers: { 
@@ -135,7 +136,13 @@ export function createFetchTweetsTool({ writer, ctx }) {
         });
 
         try {
-          tweetsData = await fetchUserTweets(userSession.accessToken, maxResults);
+          // Use the stored user ID from session
+          const userId = userSession.userId;
+          if (!userId) {
+            throw new Error('User ID not found in session');
+          }
+          
+          tweetsData = await fetchUserTweets(userSession.accessToken, userId, maxResults);
         } catch (e) {
           // If token expired, try to refresh
           if ((e.status === 401 || e.status === 403) && userSession.refreshToken) {
@@ -184,7 +191,12 @@ export function createFetchTweetsTool({ writer, ctx }) {
               },
             });
 
-            tweetsData = await fetchUserTweets(token.access_token, maxResults);
+            const userId = userSession.userId;
+            if (!userId) {
+              throw new Error('User ID not found in session');
+            }
+
+            tweetsData = await fetchUserTweets(token.access_token, userId, maxResults);
           } else {
             throw e;
           }
