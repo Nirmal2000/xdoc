@@ -191,62 +191,49 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
               const isLastMessage = index === messages.length - 1;
               
               // Handle tool messages (from database) - these are separate messages
-              if (isTool && message.parts) {
-                return message.parts.map((toolPart, toolPartIndex) => {
-                  // Handle tool-result for writeTweet
-                  if (toolPart.type === "tool-result" && toolPart.toolName === "writeTweet" && toolPart.output?.value?.content) {
-                    const tweetContent = toolPart.output.value.content;
-                    const threads = tweetContent.split('---').filter(t => t.trim());
-                    const key = `${message.id || index}-tool-${toolPartIndex}`;
-                    
-                    return (
-                      <Message
-                        key={key}
-                        className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 items-start"
-                      >
-                        <div className="group flex w-full flex-col gap-0">
-                          <div className="mb-4 space-y-4">
-                            {threads.map((thread, i) => (
-                              <div key={`${key}-thread-${i}`} className="relative">
-                                {/* Thread connector line */}
-                                {i > 0 && (
-                                  <div className="absolute left-[35px] top-0 w-0.5 bg-border h-4 -mt-2" />
-                                )}
-                                
+                  if (isTool && message.parts) {
+                    return message.parts.map((toolPart, toolPartIndex) => {
+                      // Handle tool-result for writeTweet - single tweets only
+                      if (toolPart.type === "tool-result" && toolPart.toolName === "writeTweet" && toolPart.output?.value?.content) {
+                        const tweetContent = toolPart.output.value.content;
+                        const key = `${message.id || index}-tool-${toolPartIndex}`;
+                        
+                        return (
+                          <Message
+                            key={key}
+                            className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 items-start"
+                          >
+                            <div className="group flex w-full flex-col gap-0">
+                              <div className="mb-4">
                                 <TweetMockup
-                                  index={i}
-                                  isConnectedBefore={i > 0}
-                                  isConnectedAfter={i < threads.length - 1}
-                                  threads={threads}
-                                  text={thread.trim()}
+                                  index={0}
+                                  text={tweetContent.trim()}
                                   account={{
                                     name: userInfo?.name || 'Your Name',
                                     username: userInfo?.username || 'your_username',
                                     verified: false,
                                     avatar: userInfo?.profile_image_url
                                   }}
-                                  onApply={(text, allThreads, index) => {
+                                  onApply={(text) => {
                                     navigator.clipboard.writeText(text);
                                     toast.success('Tweet copied to clipboard!');
                                   }}
                                 >
                                   {/* No animation for database-loaded tweets */}
                                   <StreamingMessage 
-                                    text={thread.trim()} 
+                                    text={tweetContent.trim()} 
                                     animate={false}
                                     speed={30}
                                   />
                                 </TweetMockup>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      </Message>
-                    );
-                  }
-                  return null;
-                }).filter(Boolean);
-              }             
+                            </div>
+                          </Message>
+                        );
+                      }
+                      return null;
+                    }).filter(Boolean);
+                  }             
               
               // Handle assistant and user messages
               if (!isTool) {
@@ -289,67 +276,24 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                     );
                   }
 
-                  // Handle tweet tool output parts
+                  // Handle tweet tool output parts (createTweet only - single tweets)
                   if (part.type === 'data-tool-output' && part.data) {
                     const tweetData = part.data;
                     
-                    // Handle fetchTweets tool output - check if this is a fetchTweets tool by looking at instructions
-                    if (tweetData.instructions?.includes('Fetching') && tweetData.instructions?.includes('tweets from X')) {
-                      // Handle error state
-                      if (tweetData.status === 'error') {
-                        return (
-                          <div key={key} className="mb-4">
-                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                              <p className="text-red-600 dark:text-red-400 text-sm">
-                                {tweetData.text || 'An error occurred while fetching tweets.'}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
-                      
-                      // Handle all other states (processing, streaming, complete) in a single container
-                      // Use part.id as key to ensure the same container is reused for all streaming updates
-                      const isStreaming = tweetData.status === 'streaming' && isLastMessage;
-                      const isProcessing = tweetData.status === 'processing';
-                      
+                    // Handle error state
+                    if (tweetData.status === 'error') {
                       return (
-                        <div key={`fetchtweets-${part.id}`} className="mb-4">
-                          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            {isProcessing ? (
-                              <div className="flex items-center gap-2">
-                                <p className="text-green-600 dark:text-green-400 text-sm">
-                                  {tweetData.instructions || 'Fetching tweets from X...'}
-                                </p>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="text-green-800 dark:text-green-200">
-                                  <StreamingMessage 
-                                    text={tweetData.text || ''} 
-                                    animate={isStreaming}
-                                    speed={50}
-                                  />
-                                </div>
-                                {tweetData.text && (
-                                  <MessageActions className="mt-2">
-                                    <MessageAction
-                                      onClick={() => handleCopyMessage(tweetData.text)}
-                                      className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
-                                    >
-                                      <Copy className="h-4 w-4" />
-                                      Copy Tweets
-                                    </MessageAction>
-                                  </MessageActions>
-                                )}
-                              </>
-                            )}
+                        <div key={key} className="mb-4">
+                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <p className="text-red-600 dark:text-red-400 text-sm">
+                              {tweetData.text || 'An error occurred.'}
+                            </p>
                           </div>
                         </div>
                       );
                     }
                     
-                    // Handle loading state (processing)
+                    // Handle processing state
                     if (tweetData.status === 'processing') {
                       return (
                         <div key={key} className="mb-4">
@@ -367,59 +311,32 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                       );
                     }
                     
-                    // Handle error state
-                    if (tweetData.status === 'error') {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-red-600 dark:text-red-400 text-sm">
-                              {tweetData.text || 'An error occurred while generating the tweet.'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle tweet content for all other statuses (streaming, complete, etc.)
-                    if (tweetData.text) {
-                      const threads = tweetData.text.split('---').filter(t => t.trim());
+                    // Handle streaming and complete states with single tweet content
+                    if (tweetData.text && (tweetData.status === 'streaming' || tweetData.status === 'complete')) {
                       const isStreaming = tweetData.status === 'streaming' && isLastMessage;
                       
                       return (
-                        <div key={key} className="mb-4 space-y-4">
-                          {threads.map((thread, i) => (
-                            <div key={`${key}-thread-${i}`} className="relative">
-                              {/* Thread connector line */}
-                              {i > 0 && (
-                                <div className="absolute left-[35px] top-0 w-0.5 bg-border h-4 -mt-2" />
-                              )}
-                              
-                              <TweetMockup
-                                index={i}
-                                isConnectedBefore={i > 0}
-                                isConnectedAfter={i < threads.length - 1}
-                                threads={threads}
-                                text={thread.trim()}
-                                account={{
-                                  name: userInfo?.name || 'Your Name',
-                                  username: userInfo?.username || 'your_username',
-                                  verified: false,
-                                  avatar: userInfo?.profile_image_url
-                                }}
-                                onApply={(text, allThreads, index) => {
-                                  navigator.clipboard.writeText(text);
-                                  toast.success('Tweet copied to clipboard!');
-                                }}
-                              >
-                                {/* Only animate streaming for the last thread of the last message */}
-                                <StreamingMessage 
-                                  text={thread.trim()} 
-                                  animate={isStreaming && i === threads.length - 1}
-                                  speed={30}
-                                />
-                              </TweetMockup>
-                            </div>
-                          ))}
+                        <div key={key} className="mb-4">
+                          <TweetMockup
+                            index={tweetData.index || 0}
+                            text={tweetData.text.trim()}
+                            account={{
+                              name: userInfo?.name || 'Your Name',
+                              username: userInfo?.username || 'your_username',
+                              verified: false,
+                              avatar: userInfo?.profile_image_url
+                            }}
+                            onApply={(text) => {
+                              navigator.clipboard.writeText(text);
+                              toast.success('Tweet copied to clipboard!');
+                            }}
+                          >
+                            <StreamingMessage 
+                              text={tweetData.text.trim()} 
+                              animate={isStreaming}
+                              speed={30}
+                            />
+                          </TweetMockup>
                         </div>
                       );
                     }
@@ -428,7 +345,101 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                     return (
                       <div key={key} className="mb-4">
                         <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                          Tweet generation in progress...
+                          Loading...
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Handle fetch-tweet-tool output parts
+                  if (part.type === 'fetch-tweet-tool' && part.data) {
+                    const fetchData = part.data;
+                    
+                    // Handle error state
+                    if (fetchData.status === 'error') {
+                      return (
+                        <div key={key} className="mb-4">
+                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <p className="text-red-600 dark:text-red-400 text-sm">
+                              {fetchData.text || 'An error occurred while fetching tweets.'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle processing state
+                    if (fetchData.status === 'processing') {
+                      return (
+                        <div key={key} className="mb-4">
+                          <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                            Fetching your tweets...
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle streaming status with loading message
+                    if (fetchData.status === 'streaming' && fetchData.text && !fetchData.tweet) {
+                      return (
+                        <div key={key} className="mb-4">
+                          <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                            {fetchData.text}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle individual tweet data with key
+                    if (fetchData.tweet && typeof fetchData.key !== 'undefined') {
+                      const tweet = fetchData.tweet;
+                      const tweetKey = `${key}-tweet-${fetchData.key}`;
+                      const isStreaming = fetchData.status === 'streaming' && isLastMessage;
+                      
+                      return (
+                        <div key={tweetKey} className="mb-4">
+                          <TweetMockup
+                            index={fetchData.key}
+                            text={tweet.text}
+                            account={{
+                              name: tweet.author.replace('@', ''),
+                              username: tweet.author.replace('@', ''),
+                              verified: false,
+                              avatar: null
+                            }}
+                            onApply={(text) => {
+                              navigator.clipboard.writeText(text);
+                              toast.success('Tweet copied to clipboard!');
+                            }}
+                          >
+                            <StreamingMessage 
+                              text={tweet.text} 
+                              animate={isStreaming}
+                              speed={50}
+                            />
+                          </TweetMockup>
+                        </div>
+                      );
+                    }
+                    
+                    // Handle complete status with text but no individual tweets (fallback)
+                    if (fetchData.status === 'complete' && fetchData.text) {
+                      return (
+                        <div key={key} className="mb-4">
+                          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-green-600 dark:text-green-400 text-sm">
+                              {fetchData.text}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Fallback for fetch-tweet-tool parts
+                    return (
+                      <div key={key} className="mb-4">
+                        <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                          Processing tweets...
                         </div>
                       </div>
                     );

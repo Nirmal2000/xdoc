@@ -64,7 +64,7 @@ export function createFetchTweetsTool({ writer, ctx }) {
         const errorMessage = 'Please authenticate with X first to fetch your tweets. Click the "Login with X" button in the top right.';
         
         writer.write({
-          type: 'data-tool-output',
+          type: 'fetch-tweet-tool',
           id: generationId,
           data: {
             text: errorMessage,
@@ -85,7 +85,7 @@ export function createFetchTweetsTool({ writer, ctx }) {
 
       // Signal that we're starting to process
       writer.write({
-        type: 'data-tool-output',
+        type: 'fetch-tweet-tool',
         id: generationId,
         data: {
           text: '',
@@ -104,7 +104,7 @@ export function createFetchTweetsTool({ writer, ctx }) {
           const errorMessage = 'Invalid or expired session. Please re-authenticate with X.';
           
           writer.write({
-            type: 'data-tool-output',
+            type: 'fetch-tweet-tool',
             id: generationId,
             data: {
               text: errorMessage,
@@ -121,14 +121,13 @@ export function createFetchTweetsTool({ writer, ctx }) {
         }
 
         let tweetsData;
-        let currentText = 'Connecting to X API...\n\n';
         
         // Update status
         writer.write({
-          type: 'data-tool-output',
+          type: 'fetch-tweet-tool',
           id: generationId,
           data: {
-            text: currentText,
+            text: 'Connecting to X API...',
             index,
             status: 'streaming',
             instructions: `Fetching up to ${maxResults} tweets from X...`,
@@ -147,13 +146,12 @@ export function createFetchTweetsTool({ writer, ctx }) {
           // If token expired, try to refresh
           if ((e.status === 401 || e.status === 403) && userSession.refreshToken) {
             console.log('[FetchTweets Tool] Refreshing expired token...');
-            currentText += 'Access token expired, refreshing...\n\n';
             
             writer.write({
-              type: 'data-tool-output',
+              type: 'fetch-tweet-tool',
               id: generationId,
               data: {
-                text: currentText,
+                text: 'Access token expired, refreshing...',
                 index,
                 status: 'streaming',
                 instructions: `Fetching up to ${maxResults} tweets from X...`,
@@ -178,13 +176,11 @@ export function createFetchTweetsTool({ writer, ctx }) {
             });
 
             // Retry the request with new token
-            currentText += 'Token refreshed, fetching tweets...\n\n';
-            
             writer.write({
-              type: 'data-tool-output',
+              type: 'fetch-tweet-tool',
               id: generationId,
               data: {
-                text: currentText,
+                text: 'Token refreshed, fetching tweets...',
                 index,
                 status: 'streaming',
                 instructions: `Fetching up to ${maxResults} tweets from X...`,
@@ -208,69 +204,61 @@ export function createFetchTweetsTool({ writer, ctx }) {
         const users = includes.users || [];
         
         console.log('[FetchTweets Tool] Fetched tweets count:', tweets.length);
-
-        currentText += `Successfully fetched ${tweets.length} tweets:\n\n`;
         
         if (tweets.length === 0) {
-          currentText += 'No tweets found in your timeline.';
+          writer.write({
+            type: 'fetch-tweet-tool',
+            id: generationId,
+            data: {
+              text: 'No tweets found in your timeline.',
+              index,
+              status: 'complete',
+              instructions: `Successfully fetched ${tweets.length} tweets from X`,
+            },
+          });
         } else {
-          // Extract just the text content from tweets
+          // Extract tweets with individual keys
           const tweetTexts = tweets.map((tweet, index) => {
             // Find the author info if available
             const author = users.find(user => user.id === tweet.author_id);
             const authorInfo = author ? `@${author.username}` : 'Unknown User';
             
-            // Format: Tweet number, author, and text
-            return `${index + 1}. ${authorInfo}: "${tweet.text}"`;
+            return {
+              key: index,
+              text: tweet.text,
+              author: authorInfo,
+              created_at: tweet.created_at,
+              public_metrics: tweet.public_metrics
+            };
           });
 
-          // Stream the tweets progressively
+          // Stream each tweet individually
           for (let i = 0; i < tweetTexts.length; i++) {
-            currentText += tweetTexts[i];
+            const tweet = tweetTexts[i];
             
-            // Add spacing between tweets
-            if (i < tweetTexts.length - 1) {
-              currentText += '\n\n';
-            }
+            writer.write({
+              type: 'fetch-tweet-tool',
+              id: generationId,
+              data: {
+                tweet: tweet,
+                key: tweet.key,
+                status: i === tweetTexts.length - 1 ? 'complete' : 'streaming',
+                instructions: `Fetching up to ${maxResults} tweets from X...`,
+              },
+            });
             
-            // Stream every few tweets to show progress
-            if (i % 5 === 0 || i === tweetTexts.length - 1) {
-              writer.write({
-                type: 'data-tool-output',
-                id: generationId,
-                data: {
-                  text: currentText,
-                  index,
-                  status: 'streaming',
-                  instructions: `Fetching up to ${maxResults} tweets from X...`,
-                },
-              });
-              
-              // Small delay to make streaming visible
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            // Small delay to make streaming visible
+            await new Promise(resolve => setTimeout(resolve, 50));
           }
         }
 
         // Debug logging
         console.log('[FetchTweets Tool] Processed tweets successfully');
 
-        // Signal completion
-        writer.write({
-          type: 'data-tool-output',
-          id: generationId,
-          data: {
-            text: currentText,
-            index,
-            status: 'complete',
-            instructions: `Successfully fetched ${tweets.length} tweets from X`,
-          },
-        });
-
         return {
           success: true,
           count: tweets.length,
-          tweets: tweets.map(t => t.text), // Return just the text content
+          tweets: tweets.map(t => t.text), // Return list of tweet texts
         };
 
       } catch (error) {
@@ -280,7 +268,7 @@ export function createFetchTweetsTool({ writer, ctx }) {
         const errorMessage = `Sorry, I encountered an error while fetching your tweets: ${error.message}`;
         
         writer.write({
-          type: 'data-tool-output',
+          type: 'fetch-tweet-tool',
           id: generationId,
           data: {
             text: errorMessage,
