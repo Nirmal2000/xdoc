@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import { refreshAccessToken } from '@/lib/xoauth';
 
 export const dynamic = 'force-dynamic';
@@ -39,25 +40,32 @@ export async function GET() {
         const accessExpires = new Date(now + (token.expires_in ?? 7200) * 1000);
         const refreshExpires = new Date(now + 30 * 24 * 60 * 60 * 1000);
 
-        jar.set('x_access_token', token.access_token, {
-          httpOnly: true,
-          sameSite: 'none',
-          secure: true,
-          path: '/',
-          expires: accessExpires,
-        });
-        if (token.refresh_token) {
-          jar.set('x_refresh_token', token.refresh_token, {
-            httpOnly: true,
-            sameSite: 'none',
-            secure: true,
-            path: '/',
-            expires: refreshExpires,
-          });
-        }
-
+        // Return JSON response and set CHIPS-partitioned cookies
         const me = await fetchMe(token.access_token);
-        return Response.json({ loggedIn: true, user: me?.data || null });
+        const res = NextResponse.json({ loggedIn: true, user: me?.data || null });
+        const accessCookie = [
+          `x_access_token=${encodeURIComponent(token.access_token)}`,
+          'Path=/',
+          `Expires=${accessExpires.toUTCString()}`,
+          'HttpOnly',
+          'Secure',
+          'SameSite=None',
+          'Partitioned',
+        ].join('; ');
+        res.headers.append('Set-Cookie', accessCookie);
+        if (token.refresh_token) {
+          const refreshCookie = [
+            `x_refresh_token=${encodeURIComponent(token.refresh_token)}`,
+            'Path=/',
+            `Expires=${refreshExpires.toUTCString()}`,
+            'HttpOnly',
+            'Secure',
+            'SameSite=None',
+            'Partitioned',
+          ].join('; ');
+          res.headers.append('Set-Cookie', refreshCookie);
+        }
+        return res;
       } catch (err) {
         // fallthrough to loggedOut
       }

@@ -51,22 +51,29 @@ export async function GET(req) {
 
     const dest = returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
     const res = NextResponse.redirect(dest, { status: 302 });
-    res.cookies.set('x_access_token', token.access_token, {
-      httpOnly: true,
-      sameSite: 'none',
-      secure: true,
-      path: '/',
-      expires: accessExpires,
-    });
+    // Set CHIPS-partitioned cookies for third-party iframe support
+    const accessCookie = [
+      `x_access_token=${encodeURIComponent(token.access_token)}`,
+      'Path=/',
+      `Expires=${accessExpires.toUTCString()}`,
+      'HttpOnly',
+      'Secure',
+      'SameSite=None',
+      'Partitioned',
+    ].join('; ');
+    res.headers.append('Set-Cookie', accessCookie);
 
     if (token.refresh_token) {
-      res.cookies.set('x_refresh_token', token.refresh_token, {
-        httpOnly: true,
-        sameSite: 'none',
-        secure: true,
-        path: '/',
-        expires: refreshExpires,
-      });
+      const refreshCookie = [
+        `x_refresh_token=${encodeURIComponent(token.refresh_token)}`,
+        'Path=/',
+        `Expires=${refreshExpires.toUTCString()}`,
+        'HttpOnly',
+        'Secure',
+        'SameSite=None',
+        'Partitioned',
+      ].join('; ');
+      res.headers.append('Set-Cookie', refreshCookie);
     }
     // Stateless: no transient cookies to clear
     return res;
