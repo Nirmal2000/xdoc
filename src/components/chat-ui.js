@@ -128,6 +128,10 @@ export default function ChatUI({ experienceId, userId }) {
         if (!conversationId) return; // Failed to create conversation
       }
       
+      // Get userSessionId from localStorage for X authentication
+      const userSessionId = typeof window !== 'undefined' ? 
+        localStorage.getItem('x_user_session_id') : null;
+      
       sendMessage(
         { text: message.trim() },
         {
@@ -135,7 +139,8 @@ export default function ChatUI({ experienceId, userId }) {
             user_id: userId,
             conversation_id: conversationId,
             experience_id: experienceId,
-            search: options.search || false
+            search: options.search || false,
+            userSessionId: userSessionId // Include X user session for fetchTweets tool
           }
         }
       );

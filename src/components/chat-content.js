@@ -17,7 +17,7 @@ import {
   PromptInputActions,
   PromptInputTextarea,
 } from "@/components/ui/prompt-input"
-import { DotsLoader } from "@/components/ui/loader"
+import { TypingLoader } from "@/components/ui/loader"
 import { ScrollButton } from "@/components/ui/scroll-button"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -293,6 +293,62 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                   if (part.type === 'data-tool-output' && part.data) {
                     const tweetData = part.data;
                     
+                    // Handle fetchTweets tool output - check if this is a fetchTweets tool by looking at instructions
+                    if (tweetData.instructions?.includes('Fetching') && tweetData.instructions?.includes('tweets from X')) {
+                      // Handle error state
+                      if (tweetData.status === 'error') {
+                        return (
+                          <div key={key} className="mb-4">
+                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                              <p className="text-red-600 dark:text-red-400 text-sm">
+                                {tweetData.text || 'An error occurred while fetching tweets.'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // Handle all other states (processing, streaming, complete) in a single container
+                      // Use part.id as key to ensure the same container is reused for all streaming updates
+                      const isStreaming = tweetData.status === 'streaming' && isLastMessage;
+                      const isProcessing = tweetData.status === 'processing';
+                      
+                      return (
+                        <div key={`fetchtweets-${part.id}`} className="mb-4">
+                          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            {isProcessing ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-green-600 dark:text-green-400 text-sm">
+                                  {tweetData.instructions || 'Fetching tweets from X...'}
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-green-800 dark:text-green-200">
+                                  <StreamingMessage 
+                                    text={tweetData.text || ''} 
+                                    animate={isStreaming}
+                                    speed={50}
+                                  />
+                                </div>
+                                {tweetData.text && (
+                                  <MessageActions className="mt-2">
+                                    <MessageAction
+                                      onClick={() => handleCopyMessage(tweetData.text)}
+                                      className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                      Copy Tweets
+                                    </MessageAction>
+                                  </MessageActions>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
                     // Handle loading state (processing)
                     if (tweetData.status === 'processing') {
                       return (
@@ -418,13 +474,31 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
 
               const messageContent = renderMessageParts(message);
               const fallbackText = getFallbackContent(message);
+              const hasContent = (messageContent && messageContent.length > 0) || (fallbackText && fallbackText.trim());
               
               console.log('[Chat Content] Message render debug:', {
                 messageId: message.id,
                 hasMessageContent: messageContent && messageContent.length > 0,
                 fallbackText,
-                fallbackTextType: typeof fallbackText
+                fallbackTextType: typeof fallbackText,
+                hasContent
               });
+
+              // Show typing loader for messages without content (especially assistant messages)
+              if (!hasContent) {
+                return (
+                  <Message
+                    key={message.id}
+                    className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-6"
+                  >
+                    <div className="group flex w-full flex-col gap-0">
+                      <div className="text-foreground prose w-full min-w-0 flex-1 rounded-lg bg-transparent p-0">
+                        <TypingLoader size="sm" />
+                      </div>
+                    </div>
+                  </Message>
+                );
+              }
 
               return (
                 <Message
@@ -518,7 +592,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
               );
               } // Close the if (!isTool) block
             })}
-            {status === "submitted" && <LoadingMessage />}
+
           </ChatContainerContent>
           <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
             <ScrollButton className="shadow-sm" />
@@ -619,14 +693,4 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   );
 }
 
-const LoadingMessage = memo(() => (
-  <Message className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-6">
-    <div className="group flex w-full flex-col gap-0">
-      <div className="text-foreground prose w-full min-w-0 flex-1 rounded-lg bg-transparent p-0">
-        <DotsLoader />
-      </div>
-    </div>
-  </Message>
-))
 
-LoadingMessage.displayName = "LoadingMessage"

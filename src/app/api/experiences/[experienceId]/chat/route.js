@@ -10,13 +10,14 @@ import { supabase } from '@/lib/supabase';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createTweetTool } from '@/lib/create-tweet-tool';
+import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 
 export const maxDuration = 30;
 
 export async function POST(req, { params }) {
   const { experienceId } = await params;
   const body = await req.json();
-  const { messages, user_id, conversation_id, search } = body;
+  const { messages, user_id, conversation_id, search, userSessionId } = body;
 
 
   if (!user_id) {
@@ -78,15 +79,27 @@ export async function POST(req, { params }) {
         },
       });
       
-      console.log('[Chat Route] WriteTweet tool created successfully');
+      // Create the fetch tweets tool with writer access
+      const fetchTweets = createFetchTweetsTool({
+        writer,
+        ctx: {
+          experienceId,
+          userId: user_id,
+          conversationId: conversation_id,
+          userSessionId: userSessionId, // Pass userSessionId from client
+        },
+      });
+      
+      console.log('[Chat Route] WriteTweet and FetchTweets tools created successfully');
 
       const result = streamText({
-        model: xai('grok-4'),
+        model: xai('grok-3-mini'),
         messages: convertToModelMessages(messages),
         system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
         stopWhen: stepCountIs(5),
         tools: {
           writeTweet,
+          fetchTweets,
         },
         providerOptions: {
           xai: {

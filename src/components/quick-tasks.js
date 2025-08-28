@@ -1,11 +1,17 @@
 "use client"
 
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+
 export default function QuickTasks({ setPrompt }) {
+  const params = useParams();
+  const experienceId = params?.experienceId;
+  const tweetsUrl = '/tweets';
   return (
     <div className="mx-auto max-w-3xl w-full text-left px-6">
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Quick Tasks</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
             className="relative overflow-hidden cursor-pointer group"
             style={{ borderRadius: '1.27rem' }}
@@ -47,7 +53,7 @@ export default function QuickTasks({ setPrompt }) {
             <div className="absolute bottom-4 left-4 text-white font-semibold">
               Create Viral X
             </div>
-          </div>
+          </div>          
         </div>
       </div>
       <div>
@@ -74,12 +80,7 @@ export default function QuickTasks({ setPrompt }) {
               Shadowban Check
             </div>
           </div>
-          <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>
-            <img src="/viral.png" alt="Viral News" className="w-full h-full object-cover" style={{ borderRadius: '0.8rem' }} />
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors" style={{ borderRadius: '0.8rem' }}></div>
-            <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
-              Viral News
-            </div>
+          <div className="flex-shrink-0 w-36 h-24 relative overflow-hidden cursor-pointer group" style={{ borderRadius: '0.8rem' }}>            
           </div>
         </div>
       </div>
