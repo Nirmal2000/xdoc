@@ -178,13 +178,26 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                 variant="outline"
                 className="rounded-full"
                 onClick={() => {
-                  const returnTo = `https://whop.com/experiences/${experienceId}`;
-                  const authUrl = `/api/auth/x/authorize?mode=popup&return_to=${encodeURIComponent(returnTo)}`;
-                  const w = 520, h = 720;
-                  const topWin = window.top || window;
-                  const y = topWin.outerHeight ? Math.max(0, (topWin.outerHeight - h) / 2) : 50;
-                  const x = topWin.outerWidth ? Math.max(0, (topWin.outerWidth - w) / 2) : 50;
-                  window.open(authUrl, 'x-auth', `popup=1,width=${w},height=${h},left=${x},top=${y}`);
+                  try {
+                    const returnTo = `https://whop.com/experiences/${experienceId}`;
+                    const abs = new URL('/api/auth/x/authorize', window.location.origin);
+                    abs.searchParams.set('return_to', returnTo);
+                    const url = abs.toString();
+                    if (iframeSdk && typeof iframeSdk.openExternalUrl === 'function') {
+                      iframeSdk.openExternalUrl({ url });
+                      return;
+                    }
+                    if (window.top) {
+                      window.top.location.href = url;
+                    } else {
+                      window.location.href = url;
+                    }
+                  } catch (e) {
+                    try {
+                      const fallback = '/api/auth/x/authorize';
+                      window.top ? (window.top.location.href = fallback) : (window.location.href = fallback);
+                    } catch (_) {}
+                  }
                 }}
               >
                 Login with X

@@ -9,22 +9,46 @@ export function useXAuth() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    let attempts = 0;
+
+    const check = async () => {
       try {
-        const res = await fetch('/api/auth/x/me', { cache: 'no-store' });        
+        const res = await fetch('/api/auth/x/me', { cache: 'no-store' });
         if (!res.ok) throw new Error('auth check failed');
         const data = await res.json();
-        console.log('[X Auth]', data);
-        if (!alive) return;
-        if (data?.loggedIn) setUser(data.user || null);
-      } catch (_) {
-        // ignore
-      } finally {
-        if (alive) setChecked(true);
-      }
+        if (!alive) return false;
+        if (data?.loggedIn) {
+          setUser(data.user || null);
+          setChecked(true);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    };
+
+    (async () => {
+      const ok = await check();
+      if (ok) return;
+      const timer = setInterval(async () => {
+        attempts += 1;
+        const ok2 = await check();
+        if (ok2 || attempts >= 10) {
+          clearInterval(timer);
+          if (!ok2) setChecked(true);
+        }
+      }, 1000);
     })();
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        check();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       alive = false;
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -37,4 +61,3 @@ export function useXAuth() {
 
   return { user, checked, logout };
 }
-

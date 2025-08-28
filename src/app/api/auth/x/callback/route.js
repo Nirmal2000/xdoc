@@ -98,7 +98,8 @@ export async function GET(req) {
       return res;
     } else {
       const dest = returnTo || process.env.NEXT_PUBLIC_POST_LOGIN_REDIRECT || '/';
-      const res = NextResponse.redirect(dest, { status: 302 });
+      const absoluteDest = new URL(dest, req.url).toString();
+      const res = NextResponse.redirect(absoluteDest, { status: 302 });
       cookieHeaders.forEach((c) => res.headers.append('Set-Cookie', c));
       return res;
     }
