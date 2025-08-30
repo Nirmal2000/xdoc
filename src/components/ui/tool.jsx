@@ -169,12 +169,6 @@ const Tool = ({
                 Processing tool call...
               </div>
             )}
-
-            {toolCallId && (
-              <div className="text-muted-foreground border-t border-blue-200 pt-2 text-xs">
-                <span className="font-mono">Call ID: {toolCallId}</span>
-              </div>
-            )}
           </div>
         </CollapsibleContent>
       </Collapsible>

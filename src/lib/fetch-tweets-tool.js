@@ -124,6 +124,9 @@ export function createFetchTweetsTool({ writer, ctx }) {
           },
         });
 
+        const userInfo = await scraper.get_user_info_twitter(cleanHandler);
+        const avatar = userInfo?.avatar || null;
+
         // Fetch tweets using RapidAPI
         const rawTweets = await scraper.fetchTweets(cleanHandler, targetPosts, start_date);
 
@@ -159,7 +162,8 @@ export function createFetchTweetsTool({ writer, ctx }) {
           const normalizedTweet = scraper.normalizePostData(rawTweet);
           normalizedTweets.push({
             text: normalizedTweet.text,
-            author: `@${cleanHandler}`
+            author: `@${cleanHandler}`,
+            avatar: avatar
           });
           tweetTexts.push(normalizedTweet.text);
         }
@@ -191,7 +195,8 @@ export function createFetchTweetsTool({ writer, ctx }) {
             // Create current state of all tweets for streaming
             const tweetsForStream = normalizedTweets.map((t, idx) => ({
               text: tweetProgressArrays[idx].streamedText,
-              author: t.author
+              author: t.author,
+              avatar: t.avatar
             }));
             
             // Check if all tweets are completed

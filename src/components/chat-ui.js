@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 export default function ChatUI({ experienceId, userId }) {
   const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [conversationTopic, setConversationTopic] = useState(null);
   
   // Debug: Track conversation ID changes
   useEffect(() => {
@@ -169,6 +170,9 @@ export default function ChatUI({ experienceId, userId }) {
   const handleSelectConversation = async (conversationId) => {
     setCurrentConversationId(conversationId);
     
+    // Clear topic when switching conversations
+    setConversationTopic(null);
+    
     // If conversationId is null, just clear messages
     if (!conversationId) {
       setMessages([]);
@@ -189,6 +193,43 @@ export default function ChatUI({ experienceId, userId }) {
     setMessages(data.messages);
   };
 
+  // Function to generate topic non-blocking
+  const generateConversationTopic = async (message, conversationId) => {
+    try {
+      console.log('[ChatUI] Generating topic for conversation:', conversationId);
+      const response = await fetch(`/api/experiences/${experienceId}/topic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: message
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[ChatUI] Generated topic:', data.topic);
+        setConversationTopic(data.topic);
+        
+        // Also update the conversation title in the database
+        await supabase
+          .from('conversations')
+          .update({ title: data.topic })
+          .eq('id', conversationId);
+        
+        // Refresh conversations in sidebar
+        if (window.loadConversations) {
+          window.loadConversations();
+        }
+      } else {
+        console.error('[ChatUI] Failed to generate topic:', response.status);
+      }
+    } catch (error) {
+      console.error('[ChatUI] Error generating topic:', error);
+    }
+  };
+
   const handleSubmit = async (message, options = {}) => {
     console.log('[ChatUI handleSubmit] ENTRY:', {
       message: message?.substring(0, 50) + '...',
@@ -199,6 +240,7 @@ export default function ChatUI({ experienceId, userId }) {
     
     if (message && message.trim()) {
       let conversationId = currentConversationId;
+      let isNewConversation = false;
       console.log('[ChatUI handleSubmit] Initial conversation ID:', conversationId);
       
       // Auto-create conversation if none exists
@@ -213,6 +255,7 @@ export default function ChatUI({ experienceId, userId }) {
           return; // Exit early if conversation creation failed
         }
         console.log('[ChatUI handleSubmit] Successfully created conversation:', conversationId);
+        isNewConversation = true;
       }
       
       // Validate conversation ID before sending
@@ -231,6 +274,7 @@ export default function ChatUI({ experienceId, userId }) {
         userId,
         experienceId,
         search: options.search || false,
+        model: options.model || 'xai/grok-3-mini',
         userSessionId: !!userSessionId,
         timestamp: new Date().toISOString()
       });
@@ -243,12 +287,20 @@ export default function ChatUI({ experienceId, userId }) {
             conversation_id: conversationId,
             experience_id: experienceId,
             search: options.search || false,
+            model: options.model || 'xai/grok-3-mini',
             userSessionId: userSessionId // Include X user session for fetchTweets tool
           }
         }
       );
       
       console.log('[ChatUI handleSubmit] sendMessage called successfully');
+      
+      // Generate topic for new conversations (non-blocking)
+      if (isNewConversation) {
+        console.log('[ChatUI handleSubmit] Generating topic for new conversation...');
+        // Don't await this - let it run in background
+        generateConversationTopic(message.trim(), conversationId);
+      }
     }
   };
 
@@ -269,6 +321,7 @@ export default function ChatUI({ experienceId, userId }) {
           onStop={stop}
           currentConversationId={currentConversationId}
           experienceId={experienceId}
+          conversationTopic={conversationTopic}
         />
       </SidebarInset>
     </SidebarProvider>

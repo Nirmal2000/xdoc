@@ -20,8 +20,12 @@ export async function POST(req, { params }) {
   console.log('[Route] POST /api/experience/:experienceId')
   const { experienceId } = await params;
   const body = await req.json();
-  const { messages, user_id, conversation_id, search, userSessionId } = body;
+  const { messages, user_id, conversation_id, search, userSessionId, model } = body;
 
+
+  // Validate and set the AI model to use
+  const aiModel = model || 'xai/grok-3-mini';
+  console.log('[Chat Route] Using AI model:', aiModel);
 
   if (!user_id) {
     throw new Error('user_id is required');
@@ -109,7 +113,7 @@ export async function POST(req, { params }) {
       }
 
       const result = streamText({
-        model: 'openai/gpt-5-mini',
+        model: aiModel,
         messages: convertedMessages,
         system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
         stopWhen: stepCountIs(5),
@@ -118,15 +122,7 @@ export async function POST(req, { params }) {
           fetchTweets,
           liveSearch,
         },
-        onStepFinish: async({toolResults, text, finishReason, usage, ...rest}) => {
-          console.log("[CHAT ROUTE] Tool Results:", JSON.stringify(toolResults,null,2))
-          console.log("[CHAT ROUTE] Step finish:", {
-            finishReason,
-            usage,
-            textLength: text?.length,
-            toolResultsCount: toolResults?.length
-          });
-        },
+        toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',
         onFinish: async ({response, content, steps, sources, ...rest}) => {
           
           // Write conversation_id to the stream as a data part
@@ -138,7 +134,7 @@ export async function POST(req, { params }) {
             }
           });
 
-          console.log('[ChatUI onFinish] Response:', JSON.stringify(response.messages, null, 2))
+          // console.log('[ChatUI onFinish] Response:', JSON.stringify(response.messages, null, 2))
         }
       });
       

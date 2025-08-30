@@ -1,0 +1,284 @@
+"use client"
+
+import {
+  Message,
+  MessageAction,
+  MessageActions,
+  MessageContent,
+} from "@/components/ui/message";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/reasoning";
+import { Source, SourceContent, SourceTrigger } from "@/components/ui/source";
+import { TypingLoader } from "@/components/ui/loader";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Copy, ThumbsDown, ThumbsUp } from "lucide-react";
+
+import { TweetPartsRenderer } from "./TweetPartsRenderer";
+import { ToolPartRenderer } from "./ToolPartRenderer";
+
+/**
+ * Component for rendering individual messages with their complex part structures
+ */
+export function MessageRenderer({ 
+  message, 
+  isLastMessage, 
+  status, 
+  userInfo, 
+  messageVotes,
+  onCopyMessage,
+  onUpvote,
+  onDownvote
+}) {
+  const isAssistant = message.role === "assistant";
+
+  // Process parts in their original order for interleaved display
+  const renderMessageParts = (msg) => {
+    if (!msg.parts || !Array.isArray(msg.parts)) {
+      return null;
+    }
+
+    // Accumulate sources from all parts
+    const allSources = [];
+    msg.parts.forEach(part => {
+      // Collect sources from live search tool output
+      if (part.type === 'tool-liveSearch' && part.output && part.output.sources) {
+        allSources.push(...part.output.sources);
+      }
+    });
+
+    const renderedParts = msg.parts.map((part, partIndex) => {
+      const key = `${msg.id}-part-${partIndex}`;
+
+      // Handle text parts
+      if (part.type === 'text' && part.text) {
+        return (
+          <MessageContent
+            key={key}
+            className="text-foreground prose flex-1 rounded-lg bg-transparent p-0 mb-2"
+            markdown
+          >
+            {part.text}
+          </MessageContent>
+        );
+      }
+
+      // Handle reasoning parts
+      if (part.type === 'reasoning' && part.text) {
+        return (
+          <div key={key} className="mb-2">
+            <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
+              <ReasoningTrigger>Thinking...</ReasoningTrigger>
+              <ReasoningContent
+                markdown
+                className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700"
+              >
+                {part.text}
+              </ReasoningContent>
+            </Reasoning>
+          </div>
+        );
+      }
+
+      // Handle tweet-related parts
+      if (part.type === 'data-tool-output' || part.type === 'data-fetch-tweets-tool') {
+        return (
+          <TweetPartsRenderer
+            key={key}
+            part={part}
+            userInfo={userInfo}
+            isLastMessage={isLastMessage}
+            keyPrefix={key}
+          />
+        );
+      }
+
+      // Handle tool parts
+      if (part.type === 'tool-liveSearch' || part.type === 'tool-fetchTweets' || part.type === 'tool-writeTweet') {
+        return (
+          <ToolPartRenderer
+            key={key}
+            part={part}
+            keyPrefix={key}
+          />
+        );
+      }
+
+      // Return null for unknown part types
+      return null;
+    });
+
+    // Add loader above sources if last part has "start" or "reasoning"
+    if (isLastMessage && msg.parts && Array.isArray(msg.parts) && msg.parts.length > 0) {
+      const lastPart = msg.parts[msg.parts.length - 1];
+      if (lastPart.type && (lastPart.type.includes('start') || lastPart.type.includes('reasoning'))) {
+        renderedParts.push(
+          <div key={`${msg.id}-loader`} className="mb-2">
+            <TypingLoader size="sm" />
+          </div>
+        );
+      }
+    }
+
+    // Add sources at the end if any were found
+    if (allSources.length > 0) {
+      renderedParts.push(
+        <div key={`${msg.id}-sources`} className="mt-2 mb-2 flex gap-2 overflow-x-auto pb-2">
+          {allSources.map((source, sourceIndex) => (
+            <div key={`${msg.id}-source-${sourceIndex}`} className="flex-shrink-0">
+              <Source href={source.url}>
+                <SourceTrigger showFavicon />
+                <SourceContent
+                  title={source.title || source.url}
+                  description={source.description || `Source ${sourceIndex + 1}`}
+                />
+              </Source>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return renderedParts;
+  };
+
+  // Fallback for messages without parts structure
+  const getFallbackContent = (msg) => {
+    if (msg.parts && Array.isArray(msg.parts)) {
+      const textPart = msg.parts.find(part => part.type === 'text' && part.text);
+      return textPart ? textPart.text : '';
+    }
+    console.log('[Chat Content] Fallback content debug:', {
+      msgContent: msg.content,
+      msgContentType: typeof msg.content,
+      msgContentStringified: JSON.stringify(msg.content)
+    });
+    return msg.content || '';
+  };
+
+  const messageContent = renderMessageParts(message);
+  const fallbackText = getFallbackContent(message);
+
+  return (
+    <Message
+      key={message.id}
+      className={cn(
+        "mx-auto flex w-full max-w-3xl flex-col gap-2 px-6",
+        isAssistant ? "items-start" : "items-end"
+      )}
+    >
+      {isAssistant ? (
+        <AssistantMessage
+          messageContent={messageContent}
+          fallbackText={fallbackText}
+          isLastMessage={isLastMessage}
+          messageVotes={messageVotes}
+          messageId={message.id}
+          onCopyMessage={onCopyMessage}
+          onUpvote={onUpvote}
+          onDownvote={onDownvote}
+        />
+      ) : (
+        <UserMessage
+          fallbackText={fallbackText}
+          onCopyMessage={onCopyMessage}
+        />
+      )}
+    </Message>
+  );
+}
+
+function AssistantMessage({ 
+  messageContent, 
+  fallbackText, 
+  isLastMessage, 
+  messageVotes, 
+  messageId,
+  onCopyMessage,
+  onUpvote,
+  onDownvote 
+}) {
+  return (
+    <div className="group flex w-full flex-col gap-0">
+      {/* Render parts in their original order */}
+      {messageContent && messageContent.length > 0 ? (
+        messageContent
+      ) : (
+        /* Fallback for messages without proper parts structure */
+        <MessageContent
+          className="text-foreground prose flex-1 rounded-lg bg-transparent p-0"
+          markdown
+        >
+          {fallbackText}
+        </MessageContent>
+      )}
+      
+      <MessageActions
+        className={cn(
+          "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+          isLastMessage && "opacity-100"
+        )}
+      >
+        <MessageAction tooltip="Copy" delayDuration={100}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => onCopyMessage(fallbackText)}
+          >
+            <Copy />
+          </Button>
+        </MessageAction>
+        <MessageAction tooltip="Upvote" delayDuration={100}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => onUpvote(messageId)}
+          >
+            <ThumbsUp className={cn(
+              messageVotes[messageId] === 'up' && "fill-white"
+            )} />
+          </Button>
+        </MessageAction>
+        <MessageAction tooltip="Downvote" delayDuration={100}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => onDownvote(messageId)}
+          >
+            <ThumbsDown className={cn(
+              messageVotes[messageId] === 'down' && "fill-red-400"
+            )} />
+          </Button>
+        </MessageAction>
+      </MessageActions>
+    </div>
+  );
+}
+
+function UserMessage({ fallbackText, onCopyMessage }) {
+  return (
+    <div className="group flex flex-col items-end gap-1">
+      <MessageContent className="bg-muted text-primary max-w-[95%] rounded-3xl px-5 py-2.5 sm:max-w-[90%]">
+        {fallbackText}
+      </MessageContent>
+      <MessageActions
+        className={cn(
+          "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+        )}
+      >
+        <MessageAction tooltip="Copy" delayDuration={100}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => onCopyMessage(fallbackText)}
+          >
+            <Copy />
+          </Button>
+        </MessageAction>
+      </MessageActions>
+    </div>
+  );
+}
