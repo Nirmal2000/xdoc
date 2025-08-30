@@ -98,7 +98,7 @@ export function useVoiceInput(voiceRecording) {
 export function useChatInput(onSubmit, currentConversationId) {
   const [prompt, setPrompt] = useState('');
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('xai/grok-3-mini');
+  const [selectedModel, setSelectedModel] = useState('xai/grok-4');
 
   const handleSubmit = () => {
     if (prompt && prompt.trim()) {

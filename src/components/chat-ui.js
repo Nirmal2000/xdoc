@@ -274,7 +274,7 @@ export default function ChatUI({ experienceId, userId }) {
         userId,
         experienceId,
         search: options.search || false,
-        model: options.model || 'xai/grok-3-mini',
+        model: options.model || 'xai/grok-4',
         userSessionId: !!userSessionId,
         timestamp: new Date().toISOString()
       });
@@ -287,7 +287,7 @@ export default function ChatUI({ experienceId, userId }) {
             conversation_id: conversationId,
             experience_id: experienceId,
             search: options.search || false,
-            model: options.model || 'xai/grok-3-mini',
+            model: options.model || 'xai/grok-4',
             userSessionId: userSessionId // Include X user session for fetchTweets tool
           }
         }

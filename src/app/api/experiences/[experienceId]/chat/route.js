@@ -24,7 +24,7 @@ export async function POST(req, { params }) {
 
 
   // Validate and set the AI model to use
-  const aiModel = model || 'xai/grok-3-mini';
+  const aiModel = model || 'xai/grok-4';
   console.log('[Chat Route] Using AI model:', aiModel);
 
   if (!user_id) {

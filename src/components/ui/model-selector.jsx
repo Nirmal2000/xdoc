@@ -22,25 +22,38 @@ const ModelSelector = React.forwardRef(({
   const [isCustomMode, setIsCustomMode] = React.useState(false)
   const [customValue, setCustomValue] = React.useState("")
   const [isMounted, setIsMounted] = React.useState(false)
+  const [customModels, setCustomModels] = React.useState([])
 
   // Ensure component only renders after hydration to prevent mismatch
   React.useEffect(() => {
     setIsMounted(true)
+    // Load custom models from localStorage
+    const saved = localStorage.getItem('custom-models')
+    if (saved) {
+      try {
+        setCustomModels(JSON.parse(saved))
+      } catch (error) {
+        console.error('Failed to load custom models:', error)
+      }
+    }
   }, [])
 
   const predefinedModels = [
-    { value: "xai/grok-3-mini", label: "xai/grok-3-mini" },
+    { value: "xai/grok-4", label: "xai/grok-4" },
     { value: "openai/gpt-4o", label: "openai/gpt-4o" }
   ]
 
+  // All available models (predefined + custom)
+  const allModels = [...predefinedModels, ...customModels]
+
   // Check if current value is a predefined model
   React.useEffect(() => {
-    const isPredefined = predefinedModels.some(model => model.value === value)
+    const isPredefined = allModels.some(model => model.value === value)
     if (!isPredefined && value) {
       setIsCustomMode(true)
       setCustomValue(value)
     }
-  }, [value])
+  }, [value, allModels])
 
   // Don't render until mounted to prevent hydration mismatch
   if (!isMounted) {
@@ -66,8 +79,20 @@ const ModelSelector = React.forwardRef(({
 
   const handleCustomSubmit = () => {
     if (customValue.trim()) {
-      onValueChange(customValue.trim())
+      const trimmedValue = customValue.trim()
+      
+      // Add to custom models if it doesn't exist
+      const exists = allModels.some(model => model.value === trimmedValue)
+      if (!exists) {
+        const newCustomModels = [...customModels, { value: trimmedValue, label: trimmedValue }]
+        setCustomModels(newCustomModels)
+        // Save to localStorage
+        localStorage.setItem('custom-models', JSON.stringify(newCustomModels))
+      }
+      
+      onValueChange(trimmedValue)
       setIsCustomMode(false)
+      setCustomValue("")
     }
   }
 
@@ -138,6 +163,16 @@ const ModelSelector = React.forwardRef(({
             {model.label}
           </SelectItem>
         ))}
+        {customModels.length > 0 && (
+          <>
+            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Custom Models</div>
+            {customModels.map((model) => (
+              <SelectItem key={model.value} value={model.value}>
+                {model.label}
+              </SelectItem>
+            ))}
+          </>
+        )}
         <SelectItem value="custom">Custom model...</SelectItem>
       </SelectContent>
     </Select>
