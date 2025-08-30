@@ -88,7 +88,7 @@ Current date: ${new Date().toLocaleDateString()}`;
 
         // Stream the tweet generation using XAI
         const result = streamText({
-          model: xai('grok-3-mini'),
+          model: 'xai/grok-3-mini',
           system: systemPrompt,
           messages: [
             {

@@ -23,10 +23,11 @@ import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/reasoning"
 import { Source, SourceContent, SourceTrigger } from "@/components/ui/source"
+import { Tool } from "@/components/ui/tool"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useVoiceRecording } from "@/hooks/useVoiceRecording"
-import { useXAuth } from "@/hooks/useXAuth"
+import { useSimpleX } from "@/hooks/useSimpleXAuth"
 import { useIframeSdk } from "@whop/react"
 import { TweetMockup } from "@/components/ui/tweet-mockup"
 import { StreamingMessage } from "@/components/ui/streaming-message"
@@ -48,15 +49,10 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   const [prompt, setPrompt] = useState('');
   const [messageVotes, setMessageVotes] = useState({}); // Track votes by message ID
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  const { user: userInfo, checked: authChecked, logout: xLogout } = useXAuth();
-
-  // Generate and save sessionId for OAuth
-  const handleLogin = () => {
-    const sessionId = crypto.randomUUID();
-    localStorage.setItem('x_user_session_id', sessionId);
-    return `/api/auth/x/authorize?return_to=${encodeURIComponent(`https://whop.com/experiences/${experienceId}`)}&sessionId=${sessionId}&ngrok-skip-browser-warning=true`;
-  };
-
+  const [handleInput, setHandleInput] = useState(''); // For simple auth handle input
+  const [showLoginInput, setShowLoginInput] = useState(false); // Control login input visibility
+  const { user: userInfo, checked: authChecked, login, logout, loading } = useSimpleX();
+  
   // Voice recording hook
   const { isRecording, transcripts, toggleRecording, getTranscriptText } = useVoiceRecording();
 
@@ -132,17 +128,36 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
     toast.success('Feedback received');
   };
 
-  const handleLogout = async () => {
-    try {
-      await xLogout();
-      // If embedded, reload top-level to ensure a clean state
-      if (typeof window !== 'undefined' && window.top) {
-        window.top.location.reload();
-      } else if (typeof window !== 'undefined') {
-        window.location.reload();
-      }
-    } catch (_) {}
+  const handleShowLoginInput = () => {
+    setShowLoginInput(true);
   };
+
+  const handleLogin = async () => {
+    if (!handleInput.trim()) {
+      toast.error('Please enter a Twitter handle');
+      return;
+    }
+
+    try {
+      await login(handleInput.trim());
+      setHandleInput(''); // Clear input after successful login
+      setShowLoginInput(false); // Hide input after successful login
+      toast.success('Login successful!');
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast.error(error.message || 'Login failed');
+    }
+  };
+
+  const handleCancelLogin = () => {
+    setHandleInput('');
+    setShowLoginInput(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+  };  
 
   return (
     <main className="flex h-screen flex-col overflow-hidden">
@@ -157,24 +172,67 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                 {userInfo?.profile_image_url ? (
                   <img
                     src={userInfo.profile_image_url}
-                    alt={userInfo?.username || 'User'}
+                    alt={userInfo?.name || 'User'}
                     className="h-8 w-8 rounded-full border"
                   />
                 ) : null}
+                <div className="text-sm text-muted-foreground mr-2">
+                  {userInfo?.name} (@{userInfo?.username})
+                </div>
                 <Button variant="outline" className="rounded-full" onClick={handleLogout}>
                   Logout
                 </Button>
               </>
             ) : (
-              <Button asChild variant="outline" className="rounded-full">
-                <a
-                  href={handleLogin()}
-                  target="_top"
-                  rel="noopener noreferrer"
-                >
-                  Login with X
-                </a>
-              </Button>
+              <div className="flex items-center gap-2">
+                {showLoginInput ? (
+                  <>
+                    <div className="animate-in slide-in-from-right-2 duration-300">
+                      <input
+                        type="text"
+                        placeholder="Enter Twitter handle (e.g., elonmusk)"
+                        value={handleInput}
+                        onChange={(e) => setHandleInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleLogin();
+                          } else if (e.key === 'Escape') {
+                            handleCancelLogin();
+                          }
+                        }}
+                        className="px-4 py-2 text-sm bg-black text-white border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        disabled={loading}
+                        autoFocus
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={handleLogin}
+                      disabled={loading || !handleInput.trim()}
+                    >
+                      {loading ? '...' : 'Login'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCancelLogin}
+                      className="rounded-full h-8 w-8 p-0 text-gray-400 hover:text-white"
+                    >
+                      ×
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={handleShowLoginInput}
+                    disabled={loading}
+                  >
+                    Login with X
+                  </Button>
+                )}
+              </div>
             )}
           </div>
       </header>
@@ -187,286 +245,349 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
             ) : null}
             {messages.map((message, index) => {
               const isAssistant = message.role === "assistant";
-              const isTool = message.role === "tool";
               const isLastMessage = index === messages.length - 1;
               
-              // Handle tool messages (from database) - these are separate messages
-                  if (isTool && message.parts) {
-                    return message.parts.map((toolPart, toolPartIndex) => {
-                      // Handle tool-result for writeTweet - single tweets only
-                      if (toolPart.type === "tool-result" && toolPart.toolName === "writeTweet" && toolPart.output?.value?.content) {
-                        const tweetContent = toolPart.output.value.content;
-                        const key = `${message.id || index}-tool-${toolPartIndex}`;
-                        
-                        return (
-                          <Message
-                            key={key}
-                            className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 items-start"
-                          >
-                            <div className="group flex w-full flex-col gap-0">
-                              <div className="mb-4">
-                                <TweetMockup
-                                  index={0}
-                                  text={tweetContent.trim()}
-                                  account={{
-                                    name: userInfo?.name || 'Your Name',
-                                    username: userInfo?.username || 'your_username',
-                                    verified: false,
-                                    avatar: userInfo?.profile_image_url
-                                  }}
-                                  onApply={(text) => {
-                                    navigator.clipboard.writeText(text);
-                                    toast.success('Tweet copied to clipboard!');
-                                  }}
-                                >
-                                  {/* No animation for database-loaded tweets */}
-                                  <StreamingMessage 
-                                    text={tweetContent.trim()} 
-                                    animate={false}
-                                    speed={30}
-                                  />
-                                </TweetMockup>
-                              </div>
-                            </div>
-                          </Message>
-                        );
-                      }
-                      return null;
-                    }).filter(Boolean);
-                  }             
+              // Tool messages removed as per requirements
               
               // Handle assistant and user messages
-              if (!isTool) {
-                // Process parts in their original order for interleaved display
-                const renderMessageParts = (msg) => {
-                  if (!msg.parts || !Array.isArray(msg.parts)) {
-                    return null;
-                  }
+              // Process parts in their original order for interleaved display
+              const renderMessageParts = (msg) => {
+                if (!msg.parts || !Array.isArray(msg.parts)) {
+                  return null;
+                }
 
-                  return msg.parts.map((part, partIndex) => {
+                // Accumulate sources from all parts
+                const allSources = [];
+                msg.parts.forEach(part => {
+                  // Collect sources from live search tool output
+                  if (part.type === 'tool-liveSearch' && part.output && part.output.sources) {
+                    allSources.push(...part.output.sources);
+                  }
+                });
+
+                const renderedParts = msg.parts.map((part, partIndex) => {
                   const key = `${msg.id}-part-${partIndex}`;
 
-                  // Handle text parts
-                  if (part.type === 'text' && part.text) {
-                    return (
-                      <MessageContent
-                        key={key}
-                        className="text-foreground prose flex-1 rounded-lg bg-transparent p-0 mb-2"
-                        markdown
-                      >
-                        {part.text}
-                      </MessageContent>
-                    );
-                  }
+                // Handle text parts
+                if (part.type === 'text' && part.text) {
+                  return (
+                    <MessageContent
+                      key={key}
+                      className="text-foreground prose flex-1 rounded-lg bg-transparent p-0 mb-2"
+                      markdown
+                    >
+                      {part.text}
+                    </MessageContent>
+                  );
+                }
 
-                  // Handle reasoning parts
-                  if (part.type === 'reasoning' && part.text) {
+                // Handle reasoning parts
+                if (part.type === 'reasoning' && part.text) {
+                  return (
+                    <div key={key} className="mb-2">
+                      <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
+                        <ReasoningTrigger>Thinking...</ReasoningTrigger>
+                        <ReasoningContent
+                          markdown
+                          className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700"
+                        >
+                          {part.text}
+                        </ReasoningContent>
+                      </Reasoning>
+                    </div>
+                  );
+                }
+
+                // Handle tweet tool output parts (createTweet only - single tweets)
+                if (part.type === 'data-tool-output' && part.data) {
+                  const tweetData = part.data;
+
+                  // Handle error state
+                  if (tweetData.status === 'error') {
                     return (
-                      <div key={key} className="mb-2">
-                        <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
-                          <ReasoningTrigger>Thinking...</ReasoningTrigger>
-                          <ReasoningContent
-                            markdown
-                            className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700"
-                          >
-                            {part.text}
-                          </ReasoningContent>
-                        </Reasoning>
+                      <div key={key} className="mb-4">
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <p className="text-red-600 dark:text-red-400 text-sm">
+                            {tweetData.text || 'An error occurred.'}
+                          </p>
+                        </div>
                       </div>
                     );
                   }
 
-                  // Handle tweet tool output parts (createTweet only - single tweets)
-                  if (part.type === 'data-tool-output' && part.data) {
-                    const tweetData = part.data;
-                    
-                    // Handle error state
-                    if (tweetData.status === 'error') {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-red-600 dark:text-red-400 text-sm">
-                              {tweetData.text || 'An error occurred.'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle processing state
-                    if (tweetData.status === 'processing') {
-                      return (
-                        <div key={key} className="mb-4">
-                          <TweetMockup 
-                            index={tweetData.index || 0}
-                            isLoading={true}
-                            account={{
-                              name: userInfo?.name || 'Your Name',
-                              username: userInfo?.username || 'your_username',
-                              verified: false,
-                              avatar: userInfo?.profile_image_url
-                            }}
-                          />
-                        </div>
-                      );
-                    }
-                    
-                    // Handle streaming and complete states with single tweet content
-                    if (tweetData.text && (tweetData.status === 'streaming' || tweetData.status === 'complete')) {
-                      const isStreaming = tweetData.status === 'streaming' && isLastMessage;
-                      
-                      return (
-                        <div key={key} className="mb-4">
-                          <TweetMockup
-                            index={tweetData.index || 0}
+                  // Handle processing state
+                  if (tweetData.status === 'processing') {
+                    return (
+                      <div key={key} className="mb-4">
+                        <TweetMockup
+                          index={tweetData.index || 0}
+                          isLoading={true}
+                          account={{
+                            name: userInfo?.name || 'Your Name',
+                            username: userInfo?.username || 'your_username',
+                            verified: false,
+                            avatar: userInfo?.profile_image_url
+                          }}
+                        />
+                      </div>
+                    );
+                  }
+
+                  // Handle streaming and complete states with single tweet content
+                  if (tweetData.text && (tweetData.status === 'streaming' || tweetData.status === 'complete')) {
+                    const isStreaming = tweetData.status === 'streaming' && isLastMessage;
+
+                    return (
+                      <div key={key} className="mb-4">
+                        <TweetMockup
+                          index={tweetData.index || 0}
+                          text={tweetData.text.trim()}
+                          account={{
+                            name: userInfo?.name || 'Your Name',
+                            username: userInfo?.username || 'your_username',
+                            verified: false,
+                            avatar: userInfo?.profile_image_url
+                          }}
+                          onApply={(text) => {
+                            navigator.clipboard.writeText(text);
+                            toast.success('Tweet copied to clipboard!');
+                          }}
+                        >
+                          <StreamingMessage
                             text={tweetData.text.trim()}
-                            account={{
-                              name: userInfo?.name || 'Your Name',
-                              username: userInfo?.username || 'your_username',
-                              verified: false,
-                              avatar: userInfo?.profile_image_url
-                            }}
-                            onApply={(text) => {
-                              navigator.clipboard.writeText(text);
-                              toast.success('Tweet copied to clipboard!');
-                            }}
-                          >
-                            <StreamingMessage 
-                              text={tweetData.text.trim()} 
-                              animate={isStreaming}
-                              speed={30}
-                            />
-                          </TweetMockup>
-                        </div>
-                      );
-                    }
-                    
-                    // Fallback for data-tool-output parts without text content
+                            animate={isStreaming}
+                            speed={30}
+                          />
+                        </TweetMockup>
+                      </div>
+                    );
+                  }
+
+                  // Fallback for data-tool-output parts without text content
+                  return (
+                    <div key={key} className="mb-4">
+                      <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                        Loading...
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Handle fetch-tweets-tool output parts
+                if (part.type === 'data-fetch-tweets-tool' && part.data) {
+                  const fetchData = part.data;
+                  // Handle error state
+                  if (fetchData.status === 'error') {
                     return (
                       <div key={key} className="mb-4">
-                        <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                          Loading...
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <p className="text-red-600 dark:text-red-400 text-sm">
+                            {fetchData.text || 'An error occurred while fetching tweets.'}
+                          </p>
                         </div>
                       </div>
                     );
                   }
 
-                  // Handle fetch-tweet-tool output parts
-                  if (part.type === 'fetch-tweet-tool' && part.data) {
-                    const fetchData = part.data;
-                    
-                    // Handle error state
-                    if (fetchData.status === 'error') {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-red-600 dark:text-red-400 text-sm">
-                              {fetchData.text || 'An error occurred while fetching tweets.'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle processing state
-                    if (fetchData.status === 'processing') {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                            Fetching your tweets...
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle streaming status with loading message
-                    if (fetchData.status === 'streaming' && fetchData.text && !fetchData.tweet) {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                            {fetchData.text}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle individual tweet data with key
-                    if (fetchData.tweet && typeof fetchData.key !== 'undefined') {
-                      const tweet = fetchData.tweet;
-                      const tweetKey = `${key}-tweet-${fetchData.key}`;
-                      const isStreaming = fetchData.status === 'streaming' && isLastMessage;
-                      
-                      return (
-                        <div key={tweetKey} className="mb-4">
-                          <TweetMockup
-                            index={fetchData.key}
-                            text={tweet.text}
-                            account={{
-                              name: tweet.author.replace('@', ''),
-                              username: tweet.author.replace('@', ''),
-                              verified: false,
-                              avatar: null
-                            }}
-                            onApply={(text) => {
-                              navigator.clipboard.writeText(text);
-                              toast.success('Tweet copied to clipboard!');
-                            }}
-                          >
-                            <StreamingMessage 
-                              text={tweet.text} 
-                              animate={isStreaming}
-                              speed={50}
-                            />
-                          </TweetMockup>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle complete status with text but no individual tweets (fallback)
-                    if (fetchData.status === 'complete' && fetchData.text) {
-                      return (
-                        <div key={key} className="mb-4">
-                          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            <p className="text-green-600 dark:text-green-400 text-sm">
-                              {fetchData.text}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Fallback for fetch-tweet-tool parts
+                  // Handle tweets array - side-scrollable display
+                  if (fetchData.tweets && Array.isArray(fetchData.tweets) && fetchData.tweets.length > 0) {
+                    const tweets = fetchData.tweets;
+
                     return (
                       <div key={key} className="mb-4">
-                        <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                          Processing tweets...
+                      {/* Display individual tweet mockups as side-scrollable */}
+                        <div className="overflow-x-auto pb-2">
+                          <div className="flex gap-4 min-w-max">
+                            {tweets.map((tweet, tweetIndex) => {
+                              // Truncate tweet text to 100 characters with ellipsis
+                              const truncatedText = tweet.text.length > 100 
+                                ? tweet.text.substring(0, 100) + '...'
+                                : tweet.text;
+                              
+                              return (
+                                <div key={`${key}-tweet-${tweetIndex}`} className="flex-shrink-0 w-80">
+                                  <TweetMockup
+                                    index={tweetIndex}
+                                    text={truncatedText}
+                                    account={{
+                                      name: tweet.author.replace('@', ''),
+                                      username: tweet.author.replace('@', ''),
+                                      verified: false,
+                                      avatar: userInfo?.profile_image_url
+                                    }}
+                                    onApply={(text) => {
+                                      // Copy the full original text, not truncated
+                                      navigator.clipboard.writeText(tweet.text);
+                                      toast.success('Tweet copied to clipboard!');
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     );
                   }
+                  return null;
+                }
 
-                  // Handle data sources parts
-                  if (part.type === 'data-sources' && part.data && part.data.length > 0) {
-                    return (
-                      <div key={key} className="mt-2 mb-2 flex gap-2 overflow-x-auto pb-2">
-                        {part.data.map((source, sourceIndex) => (
-                          <div key={`${key}-source-${sourceIndex}`} className="flex-shrink-0">
-                            <Source href={source.url}>
-                              <SourceTrigger showFavicon />
-                              <SourceContent
-                                title={source.url}
-                                description={`${source.sourceType} source`}
-                              />
-                            </Source>
-                          </div>
-                        ))}
-                      </div>
-                    );
+                // Handle live search tool parts
+                if (part.type === 'tool-liveSearch') {
+                  const toolState = part.state || 'input-streaming';
+                  const toolInput = part.input || {};
+                  const toolOutput = part.output;
+
+                  // Determine the appropriate state for the Tool component
+                  let displayState = 'input-streaming';
+                  let outputContent = undefined;
+                  let errorText = undefined;
+
+                  if (toolState === 'output-available' && toolOutput) {
+                    if (toolOutput.success) {
+                      displayState = 'output-available';
+                      outputContent = toolOutput.content;
+                    } else {
+                      displayState = 'output-error';
+                      errorText = toolOutput.error || 'Search failed';
+                    }
+                  } else if (toolState === 'input-available') {
+                    displayState = 'input-streaming'; // Keep showing as processing
                   }
+
+                  return (
+                    <div key={key} className="mb-4">
+                      <Tool
+                        className="w-full"
+                        toolPart={{
+                          type: 'liveSearch',
+                          state: displayState,
+                          input: toolInput,
+                          output: outputContent,
+                          errorText: errorText,
+                          toolCallId: part.toolCallId
+                        }}
+                      />
+                    </div>
+                  );
+                }
+
+                // Handle fetch tweets tool parts
+                if (part.type === 'tool-fetchTweets') {
+                  const toolState = part.state || 'input-streaming';
+                  const toolInput = part.input || {};
+                  const toolOutput = part.output;
+
+                  // Determine the appropriate state for the Tool component
+                  let displayState = 'input-streaming';
+                  let outputContent = undefined;
+                  let errorText = undefined;
+
+                  if (toolState === 'output-available' && toolOutput) {
+                    if (toolOutput.success) {
+                      displayState = 'output-available';
+                      outputContent = 'Tweets fetched';
+                    } else {
+                      displayState = 'output-error';
+                      errorText = toolOutput.error || 'Failed to fetch tweets';
+                    }
+                  } else if (toolState === 'input-available') {
+                    displayState = 'input-streaming'; // Keep showing as processing
+                  }
+
+                  return (
+                    <div key={key} className="mb-4">
+                      <Tool
+                        className="w-full"
+                        toolPart={{
+                          type: 'fetchTweets',
+                          state: displayState,
+                          input: toolInput,
+                          output: outputContent,
+                          errorText: errorText,
+                          toolCallId: part.toolCallId
+                        }}
+                      />
+                    </div>
+                  );
+                }
+
+                // Handle write tweets tool parts
+                if (part.type === 'tool-writeTweet') {
+                  const toolState = part.state || 'input-streaming';
+                  const toolInput = part.input || {};
+                  const toolOutput = part.output;
+
+                  // Determine the appropriate state for the Tool component
+                  let displayState = 'input-streaming';
+                  let outputContent = undefined;
+                  let errorText = undefined;
+
+                  if (toolState === 'output-available' && toolOutput) {
+                    if (toolOutput.success) {
+                      displayState = 'output-available';
+                      outputContent = 'Tweets written';
+                    } else {
+                      displayState = 'output-error';
+                      errorText = toolOutput.error || 'Failed to write tweets';
+                    }
+                  } else if (toolState === 'input-available') {
+                    displayState = 'input-streaming'; // Keep showing as processing
+                  }
+
+                  return (
+                    <div key={key} className="mb-4">
+                      <Tool
+                        className="w-full"
+                        toolPart={{
+                          type: 'writeTweet',
+                          state: displayState,
+                          input: toolInput,
+                          output: outputContent,
+                          errorText: errorText,
+                          toolCallId: part.toolCallId
+                        }}
+                      />
+                    </div>
+                  );
+                }
 
                   // Return null for unknown part types
                   return null;
                 });
+
+                // Add loader above sources if last part has "start" or "reasoning"
+                if (isLastMessage && msg.parts && Array.isArray(msg.parts) && msg.parts.length > 0) {
+                  const lastPart = msg.parts[msg.parts.length - 1];
+                  if (lastPart.type && (lastPart.type.includes('start') || lastPart.type.includes('reasoning'))) {
+                    renderedParts.push(
+                      <div key={`${msg.id}-loader`} className="mb-2">
+                        <TypingLoader size="sm" />
+                      </div>
+                    );
+                  }
+                }
+
+                // Add sources at the end if any were found
+                if (allSources.length > 0) {
+                  renderedParts.push(
+                    <div key={`${msg.id}-sources`} className="mt-2 mb-2 flex gap-2 overflow-x-auto pb-2">
+                      {allSources.map((source, sourceIndex) => (
+                        <div key={`${msg.id}-source-${sourceIndex}`} className="flex-shrink-0">
+                          <Source href={source.url}>
+                            <SourceTrigger showFavicon />
+                            <SourceContent
+                              title={source.title || source.url}
+                              description={source.description || `Source ${sourceIndex + 1}`}
+                            />
+                          </Source>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return renderedParts;
               };
 
               // Fallback for messages without parts structure
@@ -485,31 +606,6 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
 
               const messageContent = renderMessageParts(message);
               const fallbackText = getFallbackContent(message);
-              const hasContent = (messageContent && messageContent.length > 0) || (fallbackText && fallbackText.trim());
-              
-              console.log('[Chat Content] Message render debug:', {
-                messageId: message.id,
-                hasMessageContent: messageContent && messageContent.length > 0,
-                fallbackText,
-                fallbackTextType: typeof fallbackText,
-                hasContent
-              });
-
-              // Show typing loader for messages without content (especially assistant messages)
-              if (!hasContent) {
-                return (
-                  <Message
-                    key={message.id}
-                    className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-6"
-                  >
-                    <div className="group flex w-full flex-col gap-0">
-                      <div className="text-foreground prose w-full min-w-0 flex-1 rounded-lg bg-transparent p-0">
-                        <TypingLoader size="sm" />
-                      </div>
-                    </div>
-                  </Message>
-                );
-              }
 
               return (
                 <Message
@@ -601,7 +697,6 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                   )}
                 </Message>
               );
-              } // Close the if (!isTool) block
             })}
 
           </ChatContainerContent>
@@ -703,5 +798,4 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
     </main>
   );
 }
-
 

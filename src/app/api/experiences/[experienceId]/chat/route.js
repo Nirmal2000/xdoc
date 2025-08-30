@@ -1,20 +1,23 @@
-import { xai } from '@ai-sdk/xai';
 import {
-  streamText,  
-  convertToModelMessages,  
+  streamText,
+  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
   stepCountIs,
+  generateId,
 } from 'ai';
+// import {xai} from "@ai-sdk/xai"
 import { supabase } from '@/lib/supabase';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
+import { createLiveSearchTool } from '@/lib/live-search-tool';
 
 export const maxDuration = 30;
 
 export async function POST(req, { params }) {
+  console.log('[Route] POST /api/experience/:experienceId')
   const { experienceId } = await params;
   const body = await req.json();
   const { messages, user_id, conversation_id, search, userSessionId } = body;
@@ -89,123 +92,53 @@ export async function POST(req, { params }) {
           userSessionId: userSessionId, // Pass userSessionId from client
         },
       });
-      
-      console.log('[Chat Route] WriteTweet and FetchTweets tools created successfully');
+
+      // Create the live search tool
+      const liveSearch = createLiveSearchTool();
+
+      console.log('[Chat Route] WriteTweet, FetchTweets, and LiveSearch tools created successfully')
+
+      // Enhanced debugging for convertToModelMessages
+      let convertedMessages;
+      try {
+        convertedMessages = convertToModelMessages(messages);
+        // console.log('[Debug] convertToModelMessages succeeded, result:', JSON.stringify(convertedMessages, null, 2));
+      } catch (error) {
+        console.error('[Debug] Error in convertToModelMessages:', error);
+        return; // Exit early to prevent further execution
+      }
 
       const result = streamText({
-        model: xai('grok-3-mini'),
-        messages: convertToModelMessages(messages),
+        model: 'openai/gpt-5-mini',
+        messages: convertedMessages,
         system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
         stopWhen: stepCountIs(5),
         tools: {
           writeTweet,
           fetchTweets,
+          liveSearch,
         },
-        providerOptions: {
-          xai: {
-            searchParameters: {
-              mode: search ? 'on' : 'off',
-              returnCitations: search ? true : false,
-              sources: search ? [
-                {
-                  type: 'news',
-                },
-              ] : [],
-            },
-          },
+        onStepFinish: async({toolResults, text, finishReason, usage, ...rest}) => {
+          console.log("[CHAT ROUTE] Tool Results:", JSON.stringify(toolResults,null,2))
+          console.log("[CHAT ROUTE] Step finish:", {
+            finishReason,
+            usage,
+            textLength: text?.length,
+            toolResultsCount: toolResults?.length
+          });
         },
         onFinish: async ({response, content, steps, sources, ...rest}) => {
-          // Access the response after completion
-          try {
-            const resolvedResponse = await response;            
-            
-            // Send sources as a custom data part to the frontend
-            writer.write({
-              type: 'data-sources',
-              data: sources,
-            });
+          
+          // Write conversation_id to the stream as a data part
+          writer.write({
+            type: 'data-conversationid',
+            id: generateId(),
+            data: {
+              conversationId: conversation_id
+            }
+          });
 
-            // Save each message from resolvedResponse.messages as separate rows
-            const messagesToInsert = [];
-            
-            if (resolvedResponse.messages && Array.isArray(resolvedResponse.messages)) {
-              for (const message of resolvedResponse.messages) {
-                // Convert content to parts structure if needed
-                const messageWithParts = {
-                  ...message,
-                  id: crypto.randomUUID()
-                };
-                
-                // If message has content instead of parts, convert it
-                if (message.content && !message.parts) {
-                  messageWithParts.parts = Array.isArray(message.content) ? message.content : [{
-                    type: 'text',
-                    text: String(message.content)
-                  }];
-                  // Remove content property to avoid confusion
-                  delete messageWithParts.content;
-                } else if (message.content && message.parts) {
-                  // If both exist, prefer parts and remove content
-                  delete messageWithParts.content;
-                }
-                
-                messagesToInsert.push({
-                  conversation_id: conversation_id,
-                  message: messageWithParts
-                });
-              }
-            }
-            
-            // Append sources as additional row if available
-            if (sources && sources.length > 0) {
-              const sourcesMessage = {
-                id: crypto.randomUUID(),
-                role: 'assistant',
-                parts: [{
-                  type: 'data-sources',
-                  data: sources,
-                }]
-              };
-              
-              messagesToInsert.push({
-                conversation_id: conversation_id,
-                message: sourcesMessage
-              });
-            }
-            
-            // Insert messages sequentially to avoid same timestamp from trigger
-            if (messagesToInsert.length > 0) {
-              console.log(`[Chat Route] Inserting ${messagesToInsert.length} messages sequentially`);
-              
-              for (let i = 0; i < messagesToInsert.length; i++) {
-                const messageToInsert = messagesToInsert[i];
-                
-                try {
-                  const { data, error } = await supabase
-                    .from('messages')
-                    .insert(messageToInsert)
-                    .select();
-                    
-                  if (error) {
-                    console.error(`[Chat Route] Supabase error for message ${i + 1}:`, error);
-                  } else {
-                    console.log(`[Chat Route] Message ${i + 1}/${messagesToInsert.length} saved:`, data?.[0]?.id);
-                  }
-                  
-                  // Small delay to ensure different timestamps (only if not the last message)
-                  if (i < messagesToInsert.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 10));
-                  }
-                } catch (error) {
-                  console.error(`[Chat Route] Failed to save message ${i + 1}:`, error);
-                }
-              }
-              
-              console.log('[Chat Route] All messages inserted sequentially');
-            }
-          } catch (error) {
-            console.error('[Chat Route] Error in onFinish:', error);
-          }
+          console.log('[ChatUI onFinish] Response:', JSON.stringify(response.messages, null, 2))
         }
       });
       

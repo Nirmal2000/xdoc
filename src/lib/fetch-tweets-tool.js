@@ -1,278 +1,249 @@
-import {
-  generateId,
-  tool,
-} from 'ai';
+import { generateId, tool } from 'ai';
 import { z } from 'zod';
-import { getUserSession, updateUserSessionTokens } from '@/lib/user-sessions';
-import { refreshAccessToken } from '@/lib/xoauth';
+import { RapidAPIProvider } from './rapidapi-provider.js';
 
-// Fetch tweets from X API
-async function fetchUserTweets(accessToken, userId, maxResults = 50, paginationToken = null) {
-  // Build URL with query parameters
-  const params = new URLSearchParams({
-    'max_results': Math.min(maxResults, 5).toString(), // X API max is 100
-    'tweet.fields': 'created_at,public_metrics,text,author_id',
-    'user.fields': 'profile_image_url,username,name,verified',
-    'expansions': 'author_id'
-  });
-  
-  if (paginationToken) {
-    params.append('pagination_token', paginationToken);
-  }
-  
-  // Use the user ID in the URL path instead of 'me'
-  const url = `https://api.x.com/2/users/${userId}/tweets?${params.toString()}`;
-  
-  const res = await fetch(url, {
-    headers: { 
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    cache: 'no-store',
-  });
-  
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`Tweets fetch failed: ${res.status} ${text}`);
-    err.status = res.status;
-    throw err;
-  }
-  
-  return res.json();
-}
-
-// Create the fetch tweets tool that handles streaming content delivery
+// Create the fetch tweets tool that handles streaming content delivery using RapidAPI
 export function createFetchTweetsTool({ writer, ctx }) {
+  const scraper = new RapidAPIProvider();
+
   return tool({
-    description: 'Fetch user tweets from X/Twitter. Use this tool when users want to see their recent tweets or need to analyze their tweet content.',
+    description: 'Fetch tweets from a Twitter handle using RapidAPI. Use this tool when users want to analyze or view tweets from any public Twitter account. Requires either number of tweets or a start date.',
     inputSchema: z.object({
-      maxResults: z.number().min(5).max(50).default(50).describe('Maximum number of tweets to fetch (5-50)'),
+      handler: z.string().describe('The Twitter handle (with or without @) to fetch tweets from'),
+      number: z.number().min(1).max(100).optional().describe('Number of tweets to fetch (1-100)'),
+      start_date: z.string().optional().describe('Start date for tweets in YYYY-MM-DD format'),
+    }).refine((data) => data.number || data.start_date, {
+      message: "Either 'number' or 'start_date' must be provided"
     }),
-    execute: async ({ maxResults = 50 }) => {
+    execute: async ({ handler, number, start_date }) => {
       const generationId = generateId();
-      const index = 0; // For now, using single index
 
-      // Get userSessionId from context (passed from client)
-      const userSessionId = ctx?.userSessionId;
+      // Validate parameters - one of number or start_date must be present
+      if (!number && !start_date) {
+        const errorMessage = 'Error: Either number of tweets or start_date must be provided.';
 
-      // Debug logging
-      console.log('[FetchTweets Tool] Starting execution with params:', { maxResults, userSessionId });
-      
-      // If userSessionId is not provided in context, user needs to authenticate
-      if (!userSessionId) {
-        console.log('[FetchTweets Tool] No userSessionId in context, user needs to authenticate with X first');
-        const errorMessage = 'Please authenticate with X first to fetch your tweets. Click the "Login with X" button in the top right.';
-        
         writer.write({
-          type: 'fetch-tweet-tool',
+          type: 'data-fetch-tweets-tool',
           id: generationId,
           data: {
             text: errorMessage,
-            index,
+            index: 0,
             status: 'error',
-            instructions: 'Authentication required',
+            instructions: 'Missing required parameters',
           },
         });
-        
+
         return {
           success: false,
-          error: 'Authentication required - no userSessionId in context',
+          error: 'Missing required parameters: number or start_date',
         };
       }
 
-      console.log('[FetchTweets Tool] Using maxResults:', maxResults);
-      console.log('[FetchTweets Tool] Using userSessionId:', userSessionId);
+      // Debug logging
+      console.log('[FetchTweets Tool] Starting execution with params:', { handler, number, start_date });
+
+      // Validate RapidAPI key
+      if (!scraper.apiKey) {
+        const errorMessage = 'RapidAPI key not configured. Please add RAPIDAPI_KEY to your environment variables.';
+
+        writer.write({
+          type: 'data-fetch-tweets-tool',
+          id: generationId,
+          data: {
+            text: errorMessage,
+            index: 0,
+            status: 'error',
+            instructions: 'API key missing',
+          },
+        });
+
+        return {
+          success: false,
+          error: 'RapidAPI key not configured',
+        };
+      }
+
+      // Clean handler
+      const cleanHandler = handler || '';
+
+      if (!cleanHandler.trim()) {
+        const errorMessage = 'Error: Twitter handle is required.';
+
+        writer.write({
+          type: 'data-fetch-tweets-tool',
+          id: generationId,
+          data: {
+            text: errorMessage,
+            index: 0,
+            status: 'error',
+            instructions: 'Missing handler',
+          },
+        });
+
+        return {
+          success: false,
+          error: 'Twitter handle is required',
+        };
+      }
+
+      // Determine target number of posts
+      let targetPosts;
+      if (number) {
+        // If number is provided, use it (but cap at 100)
+        targetPosts = Math.min(number, 100);
+      } else {
+        // If only start_date is provided, fetch up to 100 (hard limit)
+        targetPosts = 100;
+      }
+
+      console.log('[FetchTweets Tool] Using handler:', cleanHandler);
+      console.log('[FetchTweets Tool] Target posts:', targetPosts);
 
       // Signal that we're starting to process
       writer.write({
-        type: 'fetch-tweet-tool',
+        type: 'data-fetch-tweets-tool',
         id: generationId,
         data: {
           text: '',
-          index,
+          index: 0,
           status: 'processing',
-          instructions: `Fetching up to ${maxResults} tweets from X...`,
+          instructions: `Fetching up to ${targetPosts} tweets from @${cleanHandler} using RapidAPI...`,
         },
       });
 
       try {
-        // Get user session from database
-        const userSession = await getUserSession(userSessionId);
-        
-        if (!userSession) {
-          console.error('[FetchTweets Tool] Invalid or expired session');
-          const errorMessage = 'Invalid or expired session. Please re-authenticate with X.';
-          
-          writer.write({
-            type: 'fetch-tweet-tool',
-            id: generationId,
-            data: {
-              text: errorMessage,
-              index,
-              status: 'error',
-              instructions: 'Re-authentication required',
-            },
-          });
-          
-          return {
-            success: false,
-            error: 'Invalid or expired session',
-          };
-        }
-
-        let tweetsData;
-        
         // Update status
         writer.write({
-          type: 'fetch-tweet-tool',
+          type: 'data-fetch-tweets-tool',
           id: generationId,
           data: {
-            text: 'Connecting to X API...',
-            index,
+            text: 'Connecting to RapidAPI Twitter service...',
+            index: 0,
             status: 'streaming',
-            instructions: `Fetching up to ${maxResults} tweets from X...`,
+            instructions: `Fetching up to ${targetPosts} tweets from @${cleanHandler} using RapidAPI...`,
           },
         });
 
-        try {
-          // Use the stored user ID from session
-          const userId = userSession.userId;
-          if (!userId) {
-            throw new Error('User ID not found in session');
-          }
-          
-          tweetsData = await fetchUserTweets(userSession.accessToken, userId, maxResults);
-        } catch (e) {
-          // If token expired, try to refresh
-          if ((e.status === 401 || e.status === 403) && userSession.refreshToken) {
-            console.log('[FetchTweets Tool] Refreshing expired token...');
-            
-            writer.write({
-              type: 'fetch-tweet-tool',
-              id: generationId,
-              data: {
-                text: 'Access token expired, refreshing...',
-                index,
-                status: 'streaming',
-                instructions: `Fetching up to ${maxResults} tweets from X...`,
-              },
-            });
+        // Fetch tweets using RapidAPI
+        const rawTweets = await scraper.fetchTweets(cleanHandler, targetPosts, start_date);
 
-            const clientId = process.env.X_CLIENT_ID;
-            if (!clientId) {
-              throw new Error('X_CLIENT_ID not configured');
-            }
+        console.log('[FetchTweets Tool] Fetched tweets count:', rawTweets.length);
 
-            const token = await refreshAccessToken({ 
-              refreshToken: userSession.refreshToken, 
-              clientId 
-            });
+        if (rawTweets.length === 0) {
+          const noTweetsMessage = `No tweets found for @${cleanHandler}. The account may be private or have no public tweets.`;
 
-            // Update tokens in database
-            await updateUserSessionTokens(userSessionId, {
-              accessToken: token.access_token,
-              refreshToken: token.refresh_token,
-              tokenExpiresIn: token.expires_in ?? 7200
-            });
-
-            // Retry the request with new token
-            writer.write({
-              type: 'fetch-tweet-tool',
-              id: generationId,
-              data: {
-                text: 'Token refreshed, fetching tweets...',
-                index,
-                status: 'streaming',
-                instructions: `Fetching up to ${maxResults} tweets from X...`,
-              },
-            });
-
-            const userId = userSession.userId;
-            if (!userId) {
-              throw new Error('User ID not found in session');
-            }
-
-            tweetsData = await fetchUserTweets(token.access_token, userId, maxResults);
-          } else {
-            throw e;
-          }
-        }
-
-        // Process and stream tweets
-        const tweets = tweetsData.data || [];
-        const includes = tweetsData.includes || {};
-        const users = includes.users || [];
-        
-        console.log('[FetchTweets Tool] Fetched tweets count:', tweets.length);
-        
-        if (tweets.length === 0) {
           writer.write({
-            type: 'fetch-tweet-tool',
+            type: 'data-fetch-tweets-tool',
             id: generationId,
             data: {
-              text: 'No tweets found in your timeline.',
-              index,
+              text: noTweetsMessage,
+              tweets: [],
               status: 'complete',
-              instructions: `Successfully fetched ${tweets.length} tweets from X`,
+              instructions: 'No tweets found',
             },
           });
-        } else {
-          // Extract tweets with individual keys
-          const tweetTexts = tweets.map((tweet, index) => {
-            // Find the author info if available
-            const author = users.find(user => user.id === tweet.author_id);
-            const authorInfo = author ? `@${author.username}` : 'Unknown User';
-            
-            return {
-              key: index,
-              text: tweet.text,
-              author: authorInfo,
-              created_at: tweet.created_at,
-              public_metrics: tweet.public_metrics
-            };
-          });
 
-          // Stream each tweet individually
-          for (let i = 0; i < tweetTexts.length; i++) {
-            const tweet = tweetTexts[i];
+          return {
+            success: true,
+            count: 0,
+            tweets: [],
+          };
+        }
+
+        // Normalize and prepare tweets for word-by-word streaming
+        const normalizedTweets = [];
+        const tweetTexts = [];
+
+        for (let i = 0; i < rawTweets.length; i++) {
+          const rawTweet = rawTweets[i];
+          const normalizedTweet = scraper.normalizePostData(rawTweet);
+          normalizedTweets.push({
+            text: normalizedTweet.text,
+            author: `@${cleanHandler}`
+          });
+          tweetTexts.push(normalizedTweet.text);
+        }
+
+        console.log('[FetchTweets Tool] Normalized tweets count:', normalizedTweets.length);
+
+        // Stream all tweets in parallel, word by word
+        const tweetWordArrays = normalizedTweets.map(tweet => tweet.text.split(' '));
+        const tweetProgressArrays = normalizedTweets.map(() => ({ streamedText: '', wordIndex: 0, completed: false }));
+        
+        console.log(`[FetchTweets Tool] Starting parallel streaming for ${normalizedTweets.length} tweets`);
+        
+        // Create promises for each tweet's streaming process
+        const streamingPromises = normalizedTweets.map(async (tweet, tweetIndex) => {
+          const words = tweetWordArrays[tweetIndex];
+          
+          console.log(`[FetchTweets Tool] Starting parallel stream for tweet ${tweetIndex + 1} with ${words.length} words`);
+          
+          for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
+            const word = words[wordIndex];
+            tweetProgressArrays[tweetIndex].streamedText += (wordIndex === 0 ? '' : ' ') + word;
+            tweetProgressArrays[tweetIndex].wordIndex = wordIndex;
+            
+            // Check if this tweet is complete
+            if (wordIndex === words.length - 1) {
+              tweetProgressArrays[tweetIndex].completed = true;
+            }
+            
+            // Create current state of all tweets for streaming
+            const tweetsForStream = normalizedTweets.map((t, idx) => ({
+              text: tweetProgressArrays[idx].streamedText,
+              author: t.author
+            }));
+            
+            // Check if all tweets are completed
+            const allCompleted = tweetProgressArrays.every(progress => progress.completed);
             
             writer.write({
-              type: 'fetch-tweet-tool',
+              type: 'data-fetch-tweets-tool',
               id: generationId,
               data: {
-                tweet: tweet,
-                key: tweet.key,
-                status: i === tweetTexts.length - 1 ? 'complete' : 'streaming',
-                instructions: `Fetching up to ${maxResults} tweets from X...`,
+                text: `Processing ${normalizedTweets.length} tweets in parallel...`,
+                tweets: tweetsForStream,
+                status: allCompleted ? 'complete' : 'streaming',
+                instructions: `Fetching up to ${targetPosts} tweets from @${cleanHandler} using RapidAPI...`,
               },
             });
             
-            // Small delay to make streaming visible
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Small delay between words for streaming effect (each tweet streams independently)
+            if (wordIndex < words.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 30)); // Add slight randomization for natural effect
+            }
           }
-        }
+        });
+        
+        // Wait for all tweets to finish streaming
+        await Promise.all(streamingPromises);
 
         // Debug logging
-        console.log('[FetchTweets Tool] Processed tweets successfully');
+        console.log('[FetchTweets Tool] Parallel word-by-word streaming completed successfully');
+
+        // Return formatted output as requested: '\n\n'.join(tweet_texts)
+        const joinedOutput = tweetTexts.join('\n\n');
 
         return {
           success: true,
-          count: tweets.length,
-          tweets: tweets.map(t => t.text), // Return list of tweet texts
+          count: rawTweets.length,          
+          content: joinedOutput, // The formatted string output
+          tweets: normalizedTweets, // Array of normalized tweets
+          handler: cleanHandler,
         };
 
       } catch (error) {
         console.error('[FetchTweets Tool] Error fetching tweets:', error);
-        
+
         // Signal error
-        const errorMessage = `Sorry, I encountered an error while fetching your tweets: ${error.message}`;
-        
+        const errorMessage = `Sorry, I encountered an error while fetching tweets for @${cleanHandler}: ${error.message}`;
+
         writer.write({
-          type: 'fetch-tweet-tool',
+          type: 'data-fetch-tweets-tool',
           id: generationId,
           data: {
             text: errorMessage,
-            index,
+            tweets: [],
             status: 'error',
             instructions: 'Error occurred while fetching tweets',
           },
