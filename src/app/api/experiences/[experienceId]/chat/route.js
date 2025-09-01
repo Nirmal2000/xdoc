@@ -22,6 +22,10 @@ export async function POST(req, { params }) {
   const body = await req.json();
   const { messages, user_id, conversation_id, search, userSessionId, model } = body;
 
+  // Note: Rate limiting is primarily handled on the client side using localStorage
+  // This ensures immediate feedback and reduces server load
+  // Server-side validation could be added here if needed for additional security
+
 
   // Validate and set the AI model to use
   const aiModel = model || 'xai/grok-4';

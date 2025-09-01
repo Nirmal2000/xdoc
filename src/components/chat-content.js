@@ -14,7 +14,7 @@ import { ChatHeader, MessageRenderer, ChatInput } from "@/components/chat"
 import { useMessageActions, useVoiceInput, useChatInput } from "@/hooks/useChatInteractions"
 import { BarsLoader } from "@/components/ui/loader"
 
-export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation }) {
+export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation, rateLimitInfo, userId }) {
   // Authentication and user info
   const { user: userInfo, checked: authChecked, login, logout, loading } = useSimpleX();
   
@@ -27,7 +27,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   // Custom hooks for chat functionality
   const { messageVotes, handleCopyMessage, handleUpvote, handleDownvote } = useMessageActions();
   const voiceInput = useVoiceInput(voiceRecording);
-  const chatInput = useChatInput(onSubmit, currentConversationId);
+  const chatInput = useChatInput(onSubmit, currentConversationId, userId);
 
   // Real-time transcript updates
   useEffect(() => {
@@ -101,6 +101,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
         placeholder={chatInput.getPlaceholder()}
         selectedModel={chatInput.selectedModel}
         onModelChange={chatInput.setSelectedModel}
+        rateLimitInfo={rateLimitInfo}
       />
     </main>
   );

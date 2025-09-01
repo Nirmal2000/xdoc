@@ -8,11 +8,32 @@ import ChatSidebar from './chat-sidebar';
 import ChatContent from './chat-content';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
+import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
 
 export default function ChatUI({ experienceId, userId }) {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [conversationTopic, setConversationTopic] = useState(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [rateLimitInfo, setRateLimitInfo] = useState(null);
+  
+  // Update rate limit info periodically
+  useEffect(() => {
+    const updateRateLimitInfo = () => {
+      if (userId) {
+        const info = getRateLimitInfo(userId);
+        setRateLimitInfo(info);
+        console.log('[ChatUI] Rate limit info updated:', info);
+      }
+    };
+    
+    // Update immediately
+    updateRateLimitInfo();
+    
+    // Update every minute to refresh remaining time
+    const interval = setInterval(updateRateLimitInfo, 60000);
+    
+    return () => clearInterval(interval);
+  }, [userId]);
   
   // Debug: Track conversation ID changes
   useEffect(() => {
@@ -253,6 +274,16 @@ export default function ChatUI({ experienceId, userId }) {
     });
     
     if (message && message.trim()) {
+      // Check rate limit before processing message
+      const rateLimitStatus = checkRateLimit(userId);
+      console.log('[ChatUI handleSubmit] Rate limit check:', rateLimitStatus);
+      
+      if (!rateLimitStatus.allowed) {
+        const rateLimitInfo = getRateLimitInfo(userId);
+        toast.error(rateLimitInfo.message);
+        console.log('[ChatUI handleSubmit] Rate limit exceeded, aborting message send');
+        return;
+      }
       let conversationId = currentConversationId;
       let isNewConversation = false;
       console.log('[ChatUI handleSubmit] Initial conversation ID:', conversationId);
@@ -292,6 +323,16 @@ export default function ChatUI({ experienceId, userId }) {
         userSessionId: !!userSessionId,
         timestamp: new Date().toISOString()
       });
+      
+      // Record the message for rate limiting
+      try {
+        const updatedRateLimit = recordMessage(userId);
+        console.log('[ChatUI handleSubmit] Message recorded for rate limiting:', updatedRateLimit);
+      } catch (error) {
+        console.error('[ChatUI handleSubmit] Error recording message for rate limiting:', error);
+        toast.error('Error tracking message usage. Please try again.');
+        return;
+      }
       
       sendMessage(
         { text: message.trim() },
@@ -339,6 +380,8 @@ export default function ChatUI({ experienceId, userId }) {
           experienceId={experienceId}
           conversationTopic={conversationTopic}
           isLoadingConversation={isLoadingConversation}
+          rateLimitInfo={rateLimitInfo}
+          userId={userId}
         />
       </SidebarInset>
     </SidebarProvider>

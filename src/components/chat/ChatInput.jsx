@@ -32,11 +32,28 @@ export function ChatInput({
   isInputDisabled,
   placeholder,
   selectedModel,
-  onModelChange
+  onModelChange,
+  rateLimitInfo
 }) {
   return (
     <div className="bg-background z-10 shrink-0 px-3 pb-3 md:px-5 md:pb-5">
       <div className="mx-auto max-w-3xl">
+        {/* Rate Limit Info */}
+        {/* {rateLimitInfo && (
+          <div className="mb-2 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
+              <span>
+                {rateLimitInfo.allowed ? (
+                  `${rateLimitInfo.remainingMessages} messages remaining (12h limit)`
+                ) : (
+                  <span className="text-red-500 font-medium">
+                    Rate limit reached - {rateLimitInfo.resetInHours}h until reset
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        )} */}
         <PromptInput
           isLoading={status === 'streaming' || status === 'submitted'}
           value={prompt}
@@ -132,7 +149,7 @@ function InputRightActions({
         className="size-9 rounded-full"
       >
         {(status === 'streaming' || status === 'submitted') ? (
-          <div className="size-4 animate-spin rounded-full border-[3px] border-black/90 border-t-transparent" />
+          <div className="size-4 animate-spin rounded-full border-2 border-black/90 border-t-transparent" />
         ) : (
           <ArrowUp size={18} />
         )}

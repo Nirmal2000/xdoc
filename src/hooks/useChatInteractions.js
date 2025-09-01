@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from "sonner";
+import { checkRateLimit } from '@/lib/rate-limit';
 
 /**
  * Hook for managing message actions (copy, upvote, downvote)
@@ -95,7 +96,7 @@ export function useVoiceInput(voiceRecording) {
 /**
  * Hook for managing chat input state and submission
  */
-export function useChatInput(onSubmit, currentConversationId) {
+export function useChatInput(onSubmit, currentConversationId, userId) {
   const [prompt, setPrompt] = useState('');
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [selectedModel, setSelectedModel] = useState('xai/grok-4');
@@ -106,6 +107,16 @@ export function useChatInput(onSubmit, currentConversationId) {
       if (currentConversationId?.startsWith('temp_')) {
         return;
       }
+      
+      // Check rate limit before submitting
+      if (userId) {
+        const rateLimitStatus = checkRateLimit(userId);
+        if (!rateLimitStatus.allowed) {
+          toast.error('Rate limit exceeded. Please wait before sending another message.');
+          return;
+        }
+      }
+      
       onSubmit(prompt.trim(), { search: isSearchEnabled, model: selectedModel });
       setPrompt('');
     }
@@ -116,10 +127,18 @@ export function useChatInput(onSubmit, currentConversationId) {
   };
 
   const isSubmitDisabled = (status) => {
+    // Check rate limit in addition to other conditions
+    let rateLimitExceeded = false;
+    if (userId) {
+      const rateLimitStatus = checkRateLimit(userId);
+      rateLimitExceeded = !rateLimitStatus.allowed;
+    }
+    
     return !prompt.trim() || 
            status === 'streaming' || 
            status === 'submitted' || 
-           currentConversationId?.startsWith('temp_');
+           currentConversationId?.startsWith('temp_') ||
+           rateLimitExceeded;
   };
 
   const isInputDisabled = (status) => {
