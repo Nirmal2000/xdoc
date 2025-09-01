@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-export default function QuickTasks({ setPrompt }) {
+export default function QuickTasks({ setPrompt, userInfo }) {
   const params = useParams();
   const experienceId = params?.experienceId;
   const tweetsUrl = '/tweets';
@@ -16,7 +16,8 @@ export default function QuickTasks({ setPrompt }) {
             className="relative overflow-hidden cursor-pointer group"
             style={{ borderRadius: '1.27rem' }}
             onClick={() => {
-              const prompt = "Please analyze my X/Twitter account comprehensively. Evaluate my content strategy, posting frequency, engagement patterns, audience demographics, content quality, and provide actionable recommendations for improvement. Include metrics analysis, competitor comparison, and specific suggestions to grow my presence on X.";
+              const basePrompt = "Please analyze my X/Twitter account comprehensively. Evaluate my content strategy, posting frequency, engagement patterns, audience demographics, content quality, and provide actionable recommendations for improvement. Include metrics analysis, competitor comparison, and specific suggestions to grow my presence on X.";
+              const prompt = userInfo?.username ? `${basePrompt}\n\nMy X handle: ${userInfo.username}` : basePrompt;
               setPrompt(prompt);
             }}
           >

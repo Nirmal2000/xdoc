@@ -111,9 +111,9 @@ export async function POST(req, { params }) {
       let systemPromptAdditions = '';
       
       // Add Twitter handle if available
-      if (userHandle) {
-        systemPromptAdditions += `My twitter handle is "@${userHandle}"\n`;
-      }
+      // if (userHandle) {
+      //   systemPromptAdditions += `My twitter handle is "@${userHandle}"\n`;
+      // }
       
       // Add today's date
       const today = new Date().toLocaleDateString('en-US', {
