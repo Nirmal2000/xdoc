@@ -12,6 +12,7 @@ import { toast } from "sonner";
 export default function ChatUI({ experienceId, userId }) {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [conversationTopic, setConversationTopic] = useState(null);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   
   // Debug: Track conversation ID changes
   useEffect(() => {
@@ -101,6 +102,8 @@ export default function ChatUI({ experienceId, userId }) {
     
     // Optimistic update - clear messages and set temp conversation
     setMessages([]);
+    setConversationTopic(null); // Clear topic when creating new chat
+    setIsLoadingConversation(false); // Clear loading state when creating new chat
     console.log('[ChatUI handleNewChat] Setting conversation ID to temp:', tempId);
     setCurrentConversationId(tempId);
     
@@ -176,21 +179,32 @@ export default function ChatUI({ experienceId, userId }) {
     // If conversationId is null, just clear messages
     if (!conversationId) {
       setMessages([]);
+      setIsLoadingConversation(false);
       return;
     }
     
-    // Load messages for this conversation via API
-    const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
-      method: 'GET',
-    });
+    // Set loading state before fetching
+    setIsLoadingConversation(true);
     
-    if (!response.ok) {
-      console.error('Failed to load messages');
-      return;
+    try {
+      // Load messages for this conversation via API
+      const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to load messages');
+        setIsLoadingConversation(false);
+        return;
+      }
+      
+      const data = await response.json();
+      setMessages(data.messages);
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    } finally {
+      setIsLoadingConversation(false);
     }
-    
-    const data = await response.json();
-    setMessages(data.messages);
   };
 
   // Function to generate topic non-blocking
@@ -295,9 +309,11 @@ export default function ChatUI({ experienceId, userId }) {
       
       console.log('[ChatUI handleSubmit] sendMessage called successfully');
       
-      // Generate topic for new conversations (non-blocking)
-      if (isNewConversation) {
-        console.log('[ChatUI handleSubmit] Generating topic for new conversation...');
+      // Generate topic for conversations with no messages yet (non-blocking)
+      // This catches both auto-created conversations and manually created empty conversations
+      const isFirstMessage = messages.length === 0;
+      if (isFirstMessage) {
+        console.log('[ChatUI handleSubmit] Generating topic for first message of conversation...');
         // Don't await this - let it run in background
         generateConversationTopic(message.trim(), conversationId);
       }
@@ -322,6 +338,7 @@ export default function ChatUI({ experienceId, userId }) {
           currentConversationId={currentConversationId}
           experienceId={experienceId}
           conversationTopic={conversationTopic}
+          isLoadingConversation={isLoadingConversation}
         />
       </SidebarInset>
     </SidebarProvider>

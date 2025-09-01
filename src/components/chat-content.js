@@ -12,8 +12,9 @@ import { useIframeSdk } from "@whop/react"
 import QuickTasks from "@/components/quick-tasks"
 import { ChatHeader, MessageRenderer, ChatInput } from "@/components/chat"
 import { useMessageActions, useVoiceInput, useChatInput } from "@/hooks/useChatInteractions"
+import { BarsLoader } from "@/components/ui/loader"
 
-export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic }) {
+export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation }) {
   // Authentication and user info
   const { user: userInfo, checked: authChecked, login, logout, loading } = useSimpleX();
   
@@ -54,10 +55,14 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
       <div className="relative flex-1 overflow-y-auto">
         <ChatContainerRoot className="h-full">
           <ChatContainerContent className="space-y-0 px-5 py-12">
-            {messages.length === 0 ? (
+            {isLoadingConversation ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                <BarsLoader size="lg" className="text-primary" />                
+              </div>
+            ) : messages.length === 0 ? (
               <QuickTasks setPrompt={chatInput.setPrompt} />
             ) : null}
-            {messages.map((message, index) => {
+            {!isLoadingConversation && messages.map((message, index) => {
               const isLastMessage = index === messages.length - 1;
               
               return (

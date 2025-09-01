@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { PlusIcon, Search, Trash2 } from "lucide-react"
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
+import { CircularLoader } from "@/components/ui/loader";
 
 export default function ChatSidebar({ experienceId, userId, currentConversationId, onNewChat, onSelectConversation }) {
   const [conversations, setConversations] = useState([]);
@@ -147,7 +148,7 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
                   >
                     <span className="flex items-center gap-2">
                       {conversation.status === 'creating' && (
-                        <div className="size-3 animate-spin rounded-full border border-current border-r-transparent" />
+                        <CircularLoader size="sm" className="text-current" />
                       )}
                       {conversation.title}
                     </span>
