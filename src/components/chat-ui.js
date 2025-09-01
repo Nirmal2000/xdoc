@@ -21,8 +21,7 @@ export default function ChatUI({ experienceId, userId }) {
     const updateRateLimitInfo = () => {
       if (userId) {
         const info = getRateLimitInfo(userId);
-        setRateLimitInfo(info);
-        console.log('[ChatUI] Rate limit info updated:', info);
+        setRateLimitInfo(info);        
       }
     };
     

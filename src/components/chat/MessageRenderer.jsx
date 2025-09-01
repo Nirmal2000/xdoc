@@ -51,13 +51,6 @@ export function MessageRenderer({
 
       // Handle text parts
       if (part.type === 'text' && part.text) {
-        console.log('[MessageRenderer] Text part content:', {
-          type: part.type,
-          text: part.text,
-          textType: typeof part.text,
-          isMarkdown: part.text.includes('#') || part.text.includes('*') || part.text.includes('`'),
-          length: part.text.length
-        });
         return (
           <MessageContent
             key={key}

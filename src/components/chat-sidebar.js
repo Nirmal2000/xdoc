@@ -70,8 +70,6 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
       if (!response.ok) {
         throw new Error('Failed to delete conversation');
       }
-      
-      toast.success('Conversation deleted');
     } catch (error) {
       console.error('Error deleting conversation:', error);
       toast.error('Failed to delete conversation');
