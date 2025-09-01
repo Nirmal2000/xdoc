@@ -7,6 +7,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
 import { Button } from "@/components/ui/button";
+import { CircularLoader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import {
   ArrowUp,
@@ -131,7 +132,7 @@ function InputRightActions({
         className="size-9 rounded-full"
       >
         {(status === 'streaming' || status === 'submitted') ? (
-          <span className="size-3 rounded-xs bg-white" />
+          <div className="size-4 animate-spin rounded-full border-[3px] border-black/90 border-t-transparent" />
         ) : (
           <ArrowUp size={18} />
         )}
