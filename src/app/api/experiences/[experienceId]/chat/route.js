@@ -20,7 +20,7 @@ export async function POST(req, { params }) {
   console.log('[Route] POST /api/experience/:experienceId')
   const { experienceId } = await params;
   const body = await req.json();
-  const { messages, user_id, conversation_id, search, userSessionId, model } = body;
+  const { messages, user_id, conversation_id, search, userSessionId, model, userHandle } = body;
 
   // Note: Rate limiting is primarily handled on the client side using localStorage
   // This ensures immediate feedback and reduces server load
@@ -104,7 +104,30 @@ export async function POST(req, { params }) {
       // Create the live search tool
       const liveSearch = createLiveSearchTool();
 
-      console.log('[Chat Route] WriteTweet, FetchTweets, and LiveSearch tools created successfully')
+      // Read the base system prompt
+      const baseSystemPrompt = readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8');
+      
+      // Prepare additional context
+      let systemPromptAdditions = '';
+      
+      // Add Twitter handle if available
+      if (userHandle) {
+        systemPromptAdditions += `My twitter handle is "@${userHandle}"\n`;
+      }
+      
+      // Add today's date
+      const today = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      systemPromptAdditions += `Today's date is "${today}"\n`;
+      
+      // Combine system prompt with additions
+      const finalSystemPrompt = systemPromptAdditions + baseSystemPrompt;
+      
+      console.log('[Chat Route] System prompt additions:', systemPromptAdditions);
 
       // Enhanced debugging for convertToModelMessages
       let convertedMessages;
@@ -119,7 +142,7 @@ export async function POST(req, { params }) {
       const result = streamText({
         model: aiModel,
         messages: convertedMessages,
-        system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
+        system: finalSystemPrompt,
         stopWhen: stepCountIs(5),
         tools: {
           writeTweet,

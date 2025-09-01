@@ -9,7 +9,8 @@ export default function ConversationController({
   conversationId, 
   initialMessages = [], 
   experienceId, 
-  userId 
+  userId,
+  userInfo = null 
 }) {
   const { 
     registerActions, 
@@ -64,6 +65,7 @@ export default function ConversationController({
         conversation_id: conversationId,
         experience_id: experienceId,
         userSessionId: userSessionId,
+        userHandle: userInfo?.username || null,
         ...options.body
       }
     };

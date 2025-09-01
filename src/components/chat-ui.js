@@ -9,11 +9,15 @@ import { useChatStore } from '@/lib/chatStore';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
+import { useSimpleX } from '@/hooks/useSimpleXAuth';
 
 export default function ChatUI({ experienceId, userId }) {
   const [conversationTopic, setConversationTopic] = useState(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
+  
+  // Get user info from simple auth
+  const { user: userInfo } = useSimpleX();
   
   // Get state and actions from Zustand store
   const {
@@ -317,7 +321,7 @@ export default function ChatUI({ experienceId, userId }) {
   };
 
   return (
-    <ChatProvider userId={userId} experienceId={experienceId}>
+    <ChatProvider userId={userId} experienceId={experienceId} userInfo={userInfo}>
       <SidebarProvider>
         <ChatSidebar
           experienceId={experienceId}

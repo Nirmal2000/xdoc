@@ -3,7 +3,7 @@ import ConversationController from './ConversationController';
 import { useChatStore } from '@/lib/chatStore';
 
 // This component ensures our controllers stay mounted even when not visible
-export default function ChatProvider({ userId, experienceId, children }) {
+export default function ChatProvider({ userId, experienceId, userInfo, children }) {
   const [activeConversations, setActiveConversations] = useState(new Map()); // Map<conversationId, {messages, status}>
   const { initializeConversation } = useChatStore();
 
@@ -87,6 +87,7 @@ export default function ChatProvider({ userId, experienceId, children }) {
           conversationId={conversationId}
           experienceId={experienceId}
           userId={userId}
+          userInfo={userInfo}
           initialMessages={conversationData.messages}
         />
       ))}
