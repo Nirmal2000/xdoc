@@ -1,20 +1,28 @@
 "use client"
 
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
 import { useState, useEffect } from 'react';
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import ChatSidebar from './chat-sidebar';
 import ChatContent from './chat-content';
+import ChatProvider from './chat/ChatProvider';
+import { useChatStore } from '@/lib/chatStore';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
 
 export default function ChatUI({ experienceId, userId }) {
-  const [currentConversationId, setCurrentConversationId] = useState(null);
   const [conversationTopic, setConversationTopic] = useState(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
+  
+  // Get state and actions from Zustand store
+  const {
+    activeConversationId,
+    setActiveConversationId,
+    sendMessage,
+    stop,
+    getActiveConversation
+  } = useChatStore();
   
   // Update rate limit info periodically
   useEffect(() => {
@@ -38,70 +46,25 @@ export default function ChatUI({ experienceId, userId }) {
   useEffect(() => {
     console.log('[ChatUI] Conversation ID changed:', {
       old: 'previous value',
-      new: currentConversationId,
+      new: activeConversationId,
       timestamp: new Date().toISOString()
     });
-  }, [currentConversationId]);
+  }, [activeConversationId]);
   
-  // console.log('ChatUI props - experienceId:', experienceId, 'userId:', userId);
+  // Get current conversation data from store
+  const activeConversation = getActiveConversation();
+  
+  // Debug: Log active conversation data
+  useEffect(() => {
+    console.log('[ChatUI] Active conversation data:', {
+      activeConversationId,
+      messagesCount: activeConversation.messages?.length || 0,
+      status: activeConversation.status,
+      messages: activeConversation.messages
+    });
+  }, [activeConversationId, activeConversation]);
 
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/experiences/${experienceId}/chat`,
-    }),
-    onFinish: async ({message, messages}) => {
-      console.log('[ChatUI onFinish] CALLBACK TRIGGERED!', message);
-      
-      try {
-        // Look for data-conversationid type in message parts
-        let serverConversationId = null;
-        
-        if (message?.parts && Array.isArray(message.parts)) {
-          const conversationIdPart = message.parts.find(part => part.type === 'data-conversationid');
-          
-          if (conversationIdPart && conversationIdPart.data && conversationIdPart.data.conversationId) {
-            serverConversationId = conversationIdPart.data.conversationId;
-            console.log('[ChatUI onFinish] Using server conversation ID:', serverConversationId);
-          }
-        }
-        
-        // Use server conversation ID if available, otherwise fall back to current state
-        const conversationIdToUse = serverConversationId || currentConversationId;
-        console.log('[ChatUI onFinish] Using conversation ID:', conversationIdToUse);
-        
-        // Validate conversation ID before saving
-        if (!conversationIdToUse || conversationIdToUse.startsWith('temp_')) {
-          console.error('[ChatUI onFinish] Invalid conversation ID, skipping save:', conversationIdToUse);
-          return;
-        }
-        
-        if (message && message.role === 'assistant') {
-          const result = await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationIdToUse,
-              message: message
-            });
-            
-          if (result.error) {
-            console.error('[ChatUI onFinish] Supabase error:', result.error);
-            throw result.error;
-          }
-          
-          console.log('[ChatUI onFinish] Assistant message saved successfully with conversation ID:', conversationIdToUse);
-        }
 
-        if (window.loadConversations) {
-          window.loadConversations();
-        }
-      } catch (error) {
-        console.error('[ChatUI onFinish] Error saving assistant message:', error);
-      }
-    },
-    onError: (error) => {
-      console.error('[ChatUI onError] Error occurred:', error);
-    }
-  });
 
   const handleNewChat = async () => {
     console.log('[ChatUI handleNewChat] ENTRY - Creating new chat...');
@@ -120,12 +83,11 @@ export default function ChatUI({ experienceId, userId }) {
       updated_at: new Date().toISOString()
     };
     
-    // Optimistic update - clear messages and set temp conversation
-    setMessages([]);
+    // Optimistic update - clear conversation state
     setConversationTopic(null); // Clear topic when creating new chat
     setIsLoadingConversation(false); // Clear loading state when creating new chat
     console.log('[ChatUI handleNewChat] Setting conversation ID to temp:', tempId);
-    setCurrentConversationId(tempId);
+    setActiveConversationId(tempId);
     
     // Add temp conversation to sidebar (if window.addTempConversation exists)
     if (window.addTempConversation) {
@@ -159,7 +121,13 @@ export default function ChatUI({ experienceId, userId }) {
       // Success - replace temp ID with real ID
       const realConversationId = data.conversation_id;
       console.log('[ChatUI handleNewChat] Setting conversation ID to real:', realConversationId);
-      setCurrentConversationId(realConversationId);
+      setActiveConversationId(realConversationId);
+      
+      // Activate the new conversation immediately after creation
+      if (typeof window !== 'undefined' && window.activateConversation) {
+        console.log('[ChatUI handleNewChat] Activating conversation:', realConversationId);
+        await window.activateConversation(realConversationId, []); // Empty messages for new conversation
+      }
       
       // Update sidebar with real conversation data
       if (window.replaceTempConversation) {
@@ -180,7 +148,7 @@ export default function ChatUI({ experienceId, userId }) {
       
       // Rollback - remove temp conversation and reset
       console.log('[ChatUI handleNewChat] ROLLBACK - Setting conversation ID to null');
-      setCurrentConversationId(null);
+      setActiveConversationId(null);
       if (window.removeTempConversation) {
         window.removeTempConversation(tempId);
       }
@@ -191,39 +159,31 @@ export default function ChatUI({ experienceId, userId }) {
   };
 
   const handleSelectConversation = async (conversationId) => {
-    setCurrentConversationId(conversationId);
+    console.log('[ChatUI] Selecting conversation:', conversationId);
     
     // Clear topic when switching conversations
     setConversationTopic(null);
     
-    // If conversationId is null, just clear messages
+    // If conversationId is null, just clear active conversation
     if (!conversationId) {
-      setMessages([]);
+      setActiveConversationId(null);
       setIsLoadingConversation(false);
       return;
     }
     
-    // Set loading state before fetching
-    setIsLoadingConversation(true);
+    // Set the active conversation in store
+    setActiveConversationId(conversationId);
     
-    try {
-      // Load messages for this conversation via API
-      const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
-        method: 'GET',
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to load messages');
+    // Activate the conversation (this will create a controller if needed)
+    if (typeof window !== 'undefined' && window.activateConversation) {
+      setIsLoadingConversation(true);
+      try {
+        await window.activateConversation(conversationId);
+      } catch (error) {
+        console.error('Error activating conversation:', error);
+      } finally {
         setIsLoadingConversation(false);
-        return;
       }
-      
-      const data = await response.json();
-      setMessages(data.messages);
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-    } finally {
-      setIsLoadingConversation(false);
     }
   };
 
@@ -267,7 +227,7 @@ export default function ChatUI({ experienceId, userId }) {
   const handleSubmit = async (message, options = {}) => {
     console.log('[ChatUI handleSubmit] ENTRY:', {
       message: message?.substring(0, 50) + '...',
-      currentConversationId,
+      activeConversationId,
       options,
       timestamp: new Date().toISOString()
     });
@@ -283,9 +243,8 @@ export default function ChatUI({ experienceId, userId }) {
         console.log('[ChatUI handleSubmit] Rate limit exceeded, aborting message send');
         return;
       }
-      let conversationId = currentConversationId;
-      let isNewConversation = false;
-      console.log('[ChatUI handleSubmit] Initial conversation ID:', conversationId);
+      
+      let conversationId = activeConversationId;
       
       // Auto-create conversation if none exists
       if (!conversationId) {
@@ -296,10 +255,16 @@ export default function ChatUI({ experienceId, userId }) {
         if (!conversationId) {
           console.error('[ChatUI handleSubmit] Failed to create conversation, aborting message send');
           toast.error('Failed to create conversation. Please try again.');
-          return; // Exit early if conversation creation failed
+          return;
         }
+        
         console.log('[ChatUI handleSubmit] Successfully created conversation:', conversationId);
-        isNewConversation = true;
+      } else {
+        // Ensure existing conversation is activated
+        if (typeof window !== 'undefined' && window.activateConversation) {
+          console.log('[ChatUI handleSubmit] Ensuring conversation is activated:', conversationId);
+          await window.activateConversation(conversationId);
+        }
       }
       
       // Validate conversation ID before sending
@@ -309,17 +274,12 @@ export default function ChatUI({ experienceId, userId }) {
         return;
       }
       
-      // Get userSessionId from localStorage for X authentication
-      const userSessionId = typeof window !== 'undefined' ? 
-        localStorage.getItem('x_user_session_id') : null;
-      
       console.log('[ChatUI handleSubmit] About to send message with:', {
         conversationId,
         userId,
         experienceId,
         search: options.search || false,
         model: options.model || 'xai/grok-4',
-        userSessionId: !!userSessionId,
         timestamp: new Date().toISOString()
       });
       
@@ -333,16 +293,13 @@ export default function ChatUI({ experienceId, userId }) {
         return;
       }
       
+      // Send message via store (which routes to correct controller)
       sendMessage(
         { text: message.trim() },
         {
           body: {
-            user_id: userId,
-            conversation_id: conversationId,
-            experience_id: experienceId,
             search: options.search || false,
-            model: options.model || 'xai/grok-4',
-            userSessionId: userSessionId // Include X user session for fetchTweets tool
+            model: options.model || 'xai/grok-4'
           }
         }
       );
@@ -350,8 +307,7 @@ export default function ChatUI({ experienceId, userId }) {
       console.log('[ChatUI handleSubmit] sendMessage called successfully');
       
       // Generate topic for conversations with no messages yet (non-blocking)
-      // This catches both auto-created conversations and manually created empty conversations
-      const isFirstMessage = messages.length === 0;
+      const isFirstMessage = activeConversation.messages.length === 0;
       if (isFirstMessage) {
         console.log('[ChatUI handleSubmit] Generating topic for first message of conversation...');
         // Don't await this - let it run in background
@@ -361,28 +317,30 @@ export default function ChatUI({ experienceId, userId }) {
   };
 
   return (
-    <SidebarProvider>
-      <ChatSidebar
-        experienceId={experienceId}
-        userId={userId}
-        currentConversationId={currentConversationId}
-        onNewChat={handleNewChat}
-        onSelectConversation={handleSelectConversation}
-      />
-      <SidebarInset>
-        <ChatContent
-          messages={messages}
-          status={status}
-          onSubmit={handleSubmit}
-          onStop={stop}
-          currentConversationId={currentConversationId}
+    <ChatProvider userId={userId} experienceId={experienceId}>
+      <SidebarProvider>
+        <ChatSidebar
           experienceId={experienceId}
-          conversationTopic={conversationTopic}
-          isLoadingConversation={isLoadingConversation}
-          rateLimitInfo={rateLimitInfo}
           userId={userId}
+          currentConversationId={activeConversationId}
+          onNewChat={handleNewChat}
+          onSelectConversation={handleSelectConversation}
         />
-      </SidebarInset>
-    </SidebarProvider>
+        <SidebarInset>
+          <ChatContent
+            messages={activeConversation.messages}
+            status={activeConversation.status}
+            onSubmit={handleSubmit}
+            onStop={stop}
+            currentConversationId={activeConversationId}
+            experienceId={experienceId}
+            conversationTopic={conversationTopic}
+            isLoadingConversation={isLoadingConversation}
+            rateLimitInfo={rateLimitInfo}
+            userId={userId}
+          />
+        </SidebarInset>
+      </SidebarProvider>
+    </ChatProvider>
   );
 }
