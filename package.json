@@ -21,6 +21,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/supabase-js": "^2.56.0",
+    "@tailwindcss/typography": "^0.5.16",
     "@whop-apps/iframe": "^0.0.1-canary.117",
     "@whop/api": "^0.0.42",
     "@whop/react": "^0.2.36",

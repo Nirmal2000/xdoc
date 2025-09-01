@@ -52,7 +52,10 @@ const MemoizedMarkdownBlock = memo(function MarkdownBlock({
   components = INITIAL_COMPONENTS
 }) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
+    <ReactMarkdown 
+      remarkPlugins={[remarkGfm, remarkBreaks]} 
+      components={components}
+    >
       {content}
     </ReactMarkdown>
   );

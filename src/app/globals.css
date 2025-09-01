@@ -114,3 +114,48 @@ a {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom prose styling for better markdown rendering */
+@layer utilities {
+  .prose {
+    max-width: none;
+  }
+  
+  .prose p {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+  
+  .prose p:first-child {
+    margin-top: 0;
+  }
+  
+  .prose p:last-child {
+    margin-bottom: 0;
+  }
+  
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    margin-top: 2em;
+    margin-bottom: 1em;
+  }
+  
+  .prose h1:first-child, .prose h2:first-child, .prose h3:first-child, 
+  .prose h4:first-child, .prose h5:first-child, .prose h6:first-child {
+    margin-top: 0;
+  }
+  
+  .prose ul, .prose ol {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+  
+  .prose pre {
+    margin-top: 1.7142857em;
+    margin-bottom: 1.7142857em;
+  }
+  
+  .prose blockquote {
+    margin-top: 1.6em;
+    margin-bottom: 1.6em;
+  }
+}

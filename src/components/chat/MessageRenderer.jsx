@@ -15,7 +15,7 @@ import { Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { TweetPartsRenderer } from "./TweetPartsRenderer";
 import { ToolPartRenderer } from "./ToolPartRenderer";
-
+import { Markdown } from "@/components/ui/markdown";
 /**
  * Component for rendering individual messages with their complex part structures
  */
@@ -30,7 +30,7 @@ export function MessageRenderer({
   onDownvote
 }) {
   const isAssistant = message.role === "assistant";
-
+  
   // Process parts in their original order for interleaved display
   const renderMessageParts = (msg) => {
     if (!msg.parts || !Array.isArray(msg.parts)) {
@@ -51,28 +51,40 @@ export function MessageRenderer({
 
       // Handle text parts
       if (part.type === 'text' && part.text) {
+        console.log('[MessageRenderer] Text part content:', {
+          type: part.type,
+          text: part.text,
+          textType: typeof part.text,
+          isMarkdown: part.text.includes('#') || part.text.includes('*') || part.text.includes('`'),
+          length: part.text.length
+        });
         return (
           <MessageContent
             key={key}
-            className="text-foreground prose flex-1 rounded-lg bg-transparent p-0 mb-2"
-            markdown
+            className="text-foreground prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs flex-1 rounded-lg bg-transparent mb-2 dark:prose-invert"            
           >
-            {part.text}
+            <Markdown>{part.text}</Markdown>
           </MessageContent>
         );
       }
 
       // Handle reasoning parts
       if (part.type === 'reasoning' && part.text) {
+        console.log('[MessageRenderer] Reasoning part content:', {
+          type: part.type,
+          text: part.text,
+          textType: typeof part.text,
+          isMarkdown: part.text.includes('#') || part.text.includes('*') || part.text.includes('`'),
+          length: part.text.length
+        });
         return (
           <div key={key} className="mb-2">
             <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
               <ReasoningTrigger>Thinking...</ReasoningTrigger>
-              <ReasoningContent
-                markdown
-                className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700"
+              <ReasoningContent                
+                className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700 prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs dark:prose-invert"
               >
-                {part.text}
+                <Markdown>{part.text}</Markdown>
               </ReasoningContent>
             </Reasoning>
           </div>
@@ -205,10 +217,9 @@ function AssistantMessage({
       ) : (
         /* Fallback for messages without proper parts structure */
         <MessageContent
-          className="text-foreground prose flex-1 rounded-lg bg-transparent p-0"
-          markdown
+          className="text-foreground prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs flex-1 rounded-lg bg-transparent p-0 dark:prose-invert"
         >
-          {fallbackText}
+          <Markdown>{fallbackText}</Markdown>
         </MessageContent>
       )}
       

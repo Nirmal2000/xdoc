@@ -193,6 +193,6 @@ module.exports = {
   			'blink': 'blink 1s step-end infinite'
   		}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 }
 
