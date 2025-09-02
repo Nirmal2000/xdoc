@@ -14,7 +14,9 @@ export const StreamingText = memo(function StreamingText({
   speed = 80,
   markdown = true,
 }) {
-  const [displayed, setDisplayed] = useState(animate ? "" : (text || ""));
+  // Show whatever text we already have immediately on mount
+  // to avoid re-typing previously streamed content (e.g., after reconnect).
+  const [displayed, setDisplayed] = useState(text || "");
 
   // Target full text to render (latest prop)
   const targetRef = useRef(text || "");
@@ -60,18 +62,11 @@ export const StreamingText = memo(function StreamingText({
     targetRef.current = text || "";
 
     if (!mountedRef.current) {
-      // First mount behavior: if not animating, show full; else start from 0
-      if (!animate) {
-        setDisplayed(targetRef.current);
-        indexRef.current = targetRef.current.length;
-        stopAnimation();
-      } else if (indexRef.current < targetRef.current.length && !animatingRef.current) {
-        animatingRef.current = true;
-        rafRef.current = requestAnimationFrame((t) => {
-          lastTimeRef.current = t;
-          step(t);
-        });
-      }
+      // On first mount, snap to whatever we already have (no typing).
+      // This prevents re-typing on Redis replay or when resuming.
+      setDisplayed(targetRef.current);
+      indexRef.current = targetRef.current.length;
+      stopAnimation();
       mountedRef.current = true;
       return;
     }
@@ -81,7 +76,14 @@ export const StreamingText = memo(function StreamingText({
       indexRef.current = targetRef.current.length;
     }
 
-    // When animate becomes false mid-stream, keep finishing the current target smoothly.
+    // If animation is disabled, snap to full text and stop.
+    if (!animate) {
+      setDisplayed(targetRef.current);
+      indexRef.current = targetRef.current.length;
+      stopAnimation();
+      return;
+    }
+
     // Start animation if not already running and there is remaining text.
     if (indexRef.current < targetRef.current.length && !animatingRef.current) {
       animatingRef.current = true;

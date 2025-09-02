@@ -87,8 +87,8 @@ export const TweetMockup = memo(
         )}
       >
         {/* Avatar Column */}
-        <div className="relative z-50 w-10 h-14 bg-card flex -top-2.5 items-center justify-center">
-          <Avatar className="relative !z-50 size-10">
+        <div className="relative z-10 w-10 h-14 bg-card flex -top-2.5 items-center justify-center">
+          <Avatar className="relative z-10 size-10">
             {account.avatar ? (
               <img src={account.avatar} alt={account.name} className="aspect-square h-full w-full object-cover" />
             ) : (
