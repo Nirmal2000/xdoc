@@ -59,7 +59,7 @@ export function MessageRenderer({
           >
             <StreamingText
               text={part.text}
-              animate={isLastMessage && status === 'streaming'}
+              animate={isLastMessage && status === 'streaming' && part.state !== 'done'}
               speed={110}
               markdown
             />
@@ -78,7 +78,7 @@ export function MessageRenderer({
         });
         return (
           <div key={key} className="mb-2">
-            <Reasoning isStreaming={isLastMessage && status === 'streaming'}>
+            <Reasoning isStreaming={isLastMessage && status === 'streaming' && part.state !== 'done'}>
               <ReasoningTrigger>Thinking...</ReasoningTrigger>
               <ReasoningContent                
                 className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700 prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs dark:prose-invert"
@@ -118,16 +118,13 @@ export function MessageRenderer({
       return null;
     });
 
-    // Add loader above sources if last part has "start" or "reasoning"
-    if (isLastMessage && msg.parts && Array.isArray(msg.parts) && msg.parts.length > 0) {
-      const lastPart = msg.parts[msg.parts.length - 1];
-      if (lastPart.type && (lastPart.type.includes('start') || lastPart.type.includes('reasoning'))) {
-        renderedParts.push(
-          <div key={`${msg.id}-loader`} className="mb-2">
-            <TypingLoader size="sm" />
-          </div>
-        );
-      }
+    // Add loader while any part is streaming in the last message
+    if (isLastMessage && msg.parts && Array.isArray(msg.parts) && msg.parts.some(p => p && p.state === 'streaming')) {
+      renderedParts.push(
+        <div key={`${msg.id}-loader`} className="mb-2">
+          <TypingLoader size="sm" />
+        </div>
+      );
     }
 
     // Add sources at the end if any were found

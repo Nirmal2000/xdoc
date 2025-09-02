@@ -2,11 +2,11 @@ import {
   streamText,
   convertToModelMessages,
   createUIMessageStream,
-  createUIMessageStreamResponse,
   stepCountIs,
   generateId,
 } from 'ai';
 // import {xai} from "@ai-sdk/xai"
+import { after } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -14,6 +14,7 @@ import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
 import { createTextDeltaBatcherStream } from '@/lib/ui-message-batcher';
+import { publishRedis } from '@/lib/redis';
 
 export const maxDuration = 30;
 
@@ -21,7 +22,7 @@ export async function POST(req, { params }) {
   console.log('[Route] POST /api/experience/:experienceId')
   const { experienceId } = await params;
   const body = await req.json();
-  const { messages, user_id, conversation_id, search, userSessionId, model } = body;
+  const { user_id, conversation_id, search, userSessionId, model, messages: clientMessages } = body;
 
   // Note: Rate limiting is primarily handled on the client side using localStorage
   // This ensures immediate feedback and reduces server load
@@ -34,10 +35,6 @@ export async function POST(req, { params }) {
 
   if (!user_id) {
     throw new Error('user_id is required');
-  }
-
-  if (!messages || !Array.isArray(messages)) {
-    throw new Error('messages is required and must be an array');
   }
 
   if (!conversation_id) {
@@ -56,103 +53,106 @@ export async function POST(req, { params }) {
       ignoreDuplicates: true
     });
 
-  // Save only the latest user message
-  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-  if (lastUserMessage) {
-    await supabase
+  // Optionally load DB history if client did not send messages
+  let dbHistory = null;
+  if (!clientMessages || !Array.isArray(clientMessages)) {
+    const { data, error: loadErr } = await supabase
       .from('messages')
-      .insert({
-        conversation_id: conversation_id,
-        message: lastUserMessage
-      });
+      .select('message')
+      .eq('conversation_id', conversation_id)
+      .order('created_at', { ascending: true });
+    if (loadErr) {
+      console.error('[Chat Route] Failed to load history:', loadErr);
+      return new Response('Failed to load history', { status: 500 });
+    }
+    dbHistory = data || [];
   }
 
-  const stream = createUIMessageStream({
-    execute: ({ writer }) => {
-      // Debug logging
-      console.log('[Chat Route] Starting stream execution for user:', user_id);
-      console.log('[Chat Route] Messages count:', messages.length);
-      console.log('[Chat Route] Search enabled:', search);
-      
-      // Optionally write initial custom data here (e.g., a loading indicator)
-      writer.write({
-        type: 'data-notification',
-        data: { message: 'Generating response...', level: 'info' },
-        transient: true, // Transient parts don't persist in message history
+  // Background generation (continues after response)
+  after(async () => {
+    const channel = `chat:${experienceId}:${conversation_id}`;
+    try {
+      // Create a stable message id for the assistant response
+      const assistantId = generateId();
+      await publishRedis(channel, { type: 'start', conversationId: conversation_id, assistantId });
+
+      // Prefer client-sent messages to avoid redundant DB round trips
+      const sourceMessages = clientMessages && Array.isArray(clientMessages)
+        ? clientMessages
+        : (dbHistory || []).map((m) => m.message);
+
+      // Normalize content strings to parts for compatibility
+      const normalized = (sourceMessages || []).map((m) => {
+        if (m && Array.isArray(m.parts)) return m;
+        if (m && typeof m.content === 'string') {
+          return { ...m, parts: [{ type: 'text', text: m.content }] };
+        }
+        return m;
       });
 
-      // Create the tweet tool with writer access
-      const writeTweet = createTweetTool({
-        writer,
-        ctx: {
-          experienceId,
-          userId: user_id,
-          conversationId: conversation_id,
+      const modelMessages = convertToModelMessages(normalized);
+
+      const stream = createUIMessageStream({
+        // Ensure the final response message has our assistantId
+        generateMessageId: () => assistantId,
+        // Persist the final UIMessage once, in UIMessage shape only
+        onFinish: async ({ responseMessage }) => {
+          try {
+            await supabase
+              .from('messages')
+              .upsert({ conversation_id, message: {
+                id: responseMessage.id,
+                role: responseMessage.role,
+                metadata: responseMessage.metadata,
+                parts: responseMessage.parts || [],
+              }});
+          } catch (e) {
+            console.error('[Chat Route] Persist final UIMessage failed:', e);
+          }
         },
-      });
-      
-      // Create the fetch tweets tool with writer access
-      const fetchTweets = createFetchTweetsTool({
-        writer,
-        ctx: {
-          experienceId,
-          userId: user_id,
-          conversationId: conversation_id,
-          userSessionId: userSessionId, // Pass userSessionId from client
-        },
-      });
+        execute: ({ writer }) => {
+          writer.write({ type: 'data-notification', data: { message: 'Generating response...', level: 'info' }, transient: true });
 
-      // Create the live search tool
-      const liveSearch = createLiveSearchTool();
+          const writeTweet = createTweetTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id } });
+          const fetchTweets = createFetchTweetsTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id, userSessionId } });
+          const liveSearch = createLiveSearchTool();
 
-      console.log('[Chat Route] WriteTweet, FetchTweets, and LiveSearch tools created successfully')
-
-      // Enhanced debugging for convertToModelMessages
-      let convertedMessages;
-      try {
-        convertedMessages = convertToModelMessages(messages);
-        // console.log('[Debug] convertToModelMessages succeeded, result:', JSON.stringify(convertedMessages, null, 2));
-      } catch (error) {
-        console.error('[Debug] Error in convertToModelMessages:', error);
-        return; // Exit early to prevent further execution
-      }
-
-      const result = streamText({
-        model: aiModel,
-        messages: convertedMessages,
-        system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
-        stopWhen: stepCountIs(5),
-        tools: {
-          writeTweet,
-          fetchTweets,
-          liveSearch,
-        },
-        toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',
-        onFinish: async ({response, content, steps, sources, ...rest}) => {
-          
-          // Write conversation_id to the stream as a data part
-          writer.write({
-            type: 'data-conversationid',
-            id: generateId(),
-            data: {
-              conversationId: conversation_id
-            }
+          const result = streamText({
+            model: aiModel,
+            messages: modelMessages,
+            system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
+            stopWhen: stepCountIs(5),
+            tools: { writeTweet, fetchTweets, liveSearch },
+            toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',
+            onFinish: async () => {
+              // Non-persistent, informational part for clients only
+              writer.write({ type: 'data-conversationid', id: generateId(), data: { conversationId: conversation_id }, transient: true });
+            },
           });
 
-          // console.log('[ChatUI onFinish] Response:', JSON.stringify(response.messages, null, 2))
+          // Stream full UIMessageChunk events, including reasoning, tools, and data parts
+          const uiStream = result.toUIMessageStream();
+          const batchedStream = createTextDeltaBatcherStream(uiStream, { wordsPerChunk: 4, maxLatencyMs: 120 });
+          writer.merge(batchedStream);
+        },
+      });
+
+      for await (const chunk of stream) {
+        try {
+          // Fire-and-forget to avoid per-chunk backpressure on network latency
+          publishRedis(channel, { ...chunk, conversationId: conversation_id, ts: Date.now() })
+            .catch((e) => console.error('[Chat Route] Redis publish error:', e));
+        } catch (e) {
+          console.error('[Chat Route] Redis publish error (sync):', e);
         }
-      });
-      
-      // Merge the model stream into the UI message stream with batching
-      const uiStream = result.toUIMessageStream();
-      const batchedStream = createTextDeltaBatcherStream(uiStream, {
-        wordsPerChunk: 4,
-        maxLatencyMs: 120,
-      });
-      writer.merge(batchedStream);
-    },
+      }
+      await publishRedis(channel, { type: 'finish', conversationId: conversation_id });
+    } catch (error) {
+      console.error('[Chat Route] Background generation error:', error);
+      const channel = `chat:${experienceId}:${conversation_id}`;
+      await publishRedis(channel, { type: 'error', conversationId: conversation_id, message: 'Generation failed' });
+    }
   });
 
-  // Return the streaming response
-  return createUIMessageStreamResponse({ stream });
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
 }

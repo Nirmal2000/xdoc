@@ -4,7 +4,7 @@
  */
 
 const RATE_LIMIT_KEY_PREFIX = 'rate_limit_';
-const MAX_MESSAGES = 10;
+const MAX_MESSAGES = 100;
 const TIME_WINDOW_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
 /**

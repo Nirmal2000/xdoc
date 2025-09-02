@@ -1,0 +1,650 @@
+data: {"type":"data-notification","data":{"message":"Generating response...","level":"info"},"transient":true}
+
+data: {"type":"start","messageId":"zEO0b2Rc41F8ROuY"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-start","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","toolName":"liveSearch"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"query"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"El"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"on"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":" Musk"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":" latest"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":" news"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":" September"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"202"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"5"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","inputTextDelta":"\"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","toolName":"liveSearch","input":{"query":"Elon Musk latest news September 2025"},"providerMetadata":{"openai":{"itemId":"fc_68b6ae3c76d4819f936a059ed3483c8000fe49ae9df1cacd"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_3M0eKguvsJkCipEsyZVOxeFI","output":{"success":true,"content":"Below is a summary of the latest news and developments related to Elon Musk as of early September 2025, based on recent reports from reliable sources. Since the query focuses on September 2025, I've prioritized updates from late August and early September, drawing from credible outlets like The Guardian, The New York Times, Reuters, and others. This includes a mix of business, legal, technological, and political highlights. I'll organize the information by category for clarity.\n\n### 1. **Wealth and Business Rankings**\n   - Elon Musk continues to hold the title of the world's richest person, maintaining his position for the 16th consecutive month as of September 1, 2025. According to Forbes, his net worth remains well above $150 billion, driven by his stakes in companies like Tesla and SpaceX. This ranking reflects ongoing growth in his portfolio, despite market fluctuations.\n   - Tesla has faced challenges with vehicle sales, particularly in Europe and the US, with a notable decline reported in July 2025. This has put pressure on the company, as rivals gain ground in key markets, according to Newsweek.\n\n### 2. **Legal and Regulatory Matters**\n   - Musk and his company X (formerly Twitter) have reached tentative settlements with thousands of former employees who were laid off in 2022. These settlements address claims that severance packages were not honored, marking a significant about-face for Musk, who had previously contested the lawsuits. Details were covered by The Guardian and The New York Times.\n   - Musk is actively challenging the US Securities and Exchange Commission (SEC) in court, accusing them of overreach in a lawsuit related to his 2022 Twitter share purchases. He has sought to dismiss the case, arguing it's punitive, as reported by Reuters on August 29, 2025.\n   - In another legal development, Musk has threatened Apple with a lawsuit over alleged antitrust violations tied to app rankings and OpenAI integrations. This has escalated into a public feud with OpenAI's CEO, Sam Altman, according to The Guardian.\n\n### 3. **SpaceX and Aerospace Updates**\n   - SpaceX's Starship program experienced a mix of setbacks and successes. A launch planned for August 2025 was scrubbed due to issues with ground systems, as noted by The Guardian. However, a subsequent test flight achieved success, with Elon Musk emphasizing plans for a faster launch cadence, potentially by late September. This is part of his ambitious timeline for lunar and Mars missions, covered by CNN.\n\n### 4. **AI, Technology, and Investments**\n   - Musk's AI company, xAI, made headlines for a bold bid to acquire OpenAI for $97.4 billion earlier in 2025. Musk reportedly approached Meta's CEO, Mark Zuckerberg, to join the effort, according to CNBC. This reflects Musk's growing focus on AI development.\n   - Tesla is preparing a major update to its Full Self-Driving (FSD) software, with Musk detailing significant changes expected in September 2025. This could enhance autonomous driving capabilities, as reported by Teslarati.\n   - Musk's involvement in AI extends to predictions and innovations, including a reported breakthrough that could reshape technology. A GlobeNewswire article highlighted his role in US AI priorities, amid discussions of policy changes.\n   - In the crypto space, Musk's influence persists, with his AI tool, Grok, making a prediction for XRP's price in September 2025. Additionally, Dogecoin saw a sharp decline on September 1, partly linked to speculation around Musk's ecosystem, per Pintu News.\n\n### 5. **Political and Social Commentary**\n   - Musk has scaled back plans for a new political party, choosing to focus on his business ventures instead, as reported by Reuters in late August 2025. This shift comes amid his growing influence in Texas, where SpaceX and other operations have secured political wins, according to KUT Radio.\n   - Musk has weighed in on broader economic issues, warning of a potential US recession in late 2025 due to tariffs from the previous administration. This prediction aligns with concerns from business leaders, as noted by AI News.\n   - In a lighter but notable context, Musk commented on social issues in the UK, including a movement involving national flags, which was mentioned in a Twitchy article from early September.\n\n### Final Notes\nThis overview captures the most recent and relevant developments as of September 2, 2025, based on information from trusted sources like Reuters, The Guardian, and others. News can evolve quickly, so for the latest details, I recommend checking updates from these outlets directly. If you have a specific aspect of Musk's activities you'd like to explore further, let me know!","sources":[{"type":"source","sourceType":"url","id":"70b0iVNh6SreoScX","url":"https://www.theguardian.com/technology/2025/aug/22/elon-musk-x-settlement-twitter-employees"},{"type":"source","sourceType":"url","id":"MMPmjJPcqgRuJQE9","url":"https://www.bbc.com/news/topics/c302m85q53mt"},{"type":"source","sourceType":"url","id":"IrL8rfb4iNDgcsOm","url":"https://www.theguardian.com/technology/elon-musk"},{"type":"source","sourceType":"url","id":"ws9ddOyQKi6MJPS5","url":"https://www.nytimes.com/2025/08/22/technology/elon-musk-x-settlements.html"},{"type":"source","sourceType":"url","id":"oa7uGLY0rGxCoGUk","url":"https://www.forbes.com/profile/elon-musk/"},{"type":"source","sourceType":"url","id":"bPgdojD2rMjkWvZf","url":"https://www.theguardian.com/science/2025/aug/24/spacex-starship-rocket-launch-elon-musk"},{"type":"source","sourceType":"url","id":"JlXYWtsEvyOzdkNo","url":"https://www.reuters.com/business/musk-accuses-sec-overreach-seeks-end-lawsuit-over-twitter-stake-2025-08-29/"},{"type":"source","sourceType":"url","id":"NXfBU9ddjTL4qHyP","url":"https://www.reuters.com/business/retail-consumer/musk-quietly-puts-brakes-plans-new-political-party-wsj-says-2025-08-20/"},{"type":"source","sourceType":"url","id":"BoEFiGrGD4bKylbz","url":"https://www.kut.org/politics/2025-07-02/texas-elon-musk-spacex"},{"type":"source","sourceType":"url","id":"nGIizQ7L2jeWT7xy","url":"https://www.theguardian.com/technology/2025/aug/12/elon-musk-apple-openai-sam-altman"},{"type":"source","sourceType":"url","id":"WqqHkFgeXGZn1LrN","url":"https://indianexpress.com/article/trending/top-10-listing/world-top-10-richest-people-september-2025-forbes-billionaire-list-10225269/"},{"type":"source","sourceType":"url","id":"wiz8ZlWeLf0rGtYw","url":"https://pintu.co.id/en/news/200578-dogecoin-price-update-today-1sept2025"},{"type":"source","sourceType":"url","id":"s8BZV6KWYSc5tIgB","url":"https://twitchy.com/brettt/2025/09/01/dublin-city-council-debating-what-to-do-about-citizens-flying-irish-flags-n2418276"},{"type":"source","sourceType":"url","id":"DtiH6xAdX9rSEaOi","url":"https://news.bit2me.com/en/Elon-Musk-predicts-XRP-price-in-September."},{"type":"source","sourceType":"url","id":"Vgm06oiD0IoXreCK","url":"https://www.cnn.com/science/live-news/spacex-starship-flight-10-launch-08-26-25"},{"type":"source","sourceType":"url","id":"hjjitQBdOsB38SLj","url":"https://globenewswire.com/news-release/2025/08/30/3141894/0/en/Elon-Musk-s-Latest-Breakthrough-Could-Redefine-the-Future-of-Technology.html"},{"type":"source","sourceType":"url","id":"z8BzYTlGgaQ6JMqU","url":"https://www.teslarati.com/tesla-ceo-elon-musk-details-massive-fsd-update-september-release/"},{"type":"source","sourceType":"url","id":"ow4INSDnfk0Q8LCC","url":"https://newsweek.com/elon-musk-tesla-update-2120929"},{"type":"source","sourceType":"url","id":"2GK6CpB9DyLz2i1G","url":"https://www.cnbc.com/2025/08/21/elon-musk-asked-meta-ceo-mark-zuckerberg-to-join-xai-bid-to-buy-openai.html"},{"type":"source","sourceType":"url","id":"4zGxuv5hok4d808M","url":"https://opentools.ai/news/elon-musk-rings-recession-alarm-for-2025-due-to-trump-era-tariffs"}],"query":"Elon Musk latest news September 2025"}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","providerMetadata":{"openai":{"itemId":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd"}}}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"###"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Latest"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" News"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" on"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Elon"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Musk"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"September"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":")\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Here's"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" summary"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" recent"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" developments"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" regarding"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Elon"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Musk"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":":\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"1"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"We"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"alth"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Business"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"**\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Maint"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ains"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" position"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" as"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" world's"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" richest"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" person"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":","}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" net"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" worth"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" over"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" $"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"150"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" billion"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Tesla"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" faces"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" declining"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" vehicle"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" sales"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Europe"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" US"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"2"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Legal"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Regulatory"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"**\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Sett"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"lements"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" former"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Twitter"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"X"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":")"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" employees"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" over"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" sever"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ance"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" disputes"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Challenges"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" SEC"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" over"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"2"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Twitter"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" share"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" purchases"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" In"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"volved"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" legal"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" dispute"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Apple"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Open"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"AI"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"3"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Space"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"X"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Aerospace"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"**\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Mixed"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" successes"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Star"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ship"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" program"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":";"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" recent"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" successful"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" test"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" flight"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Plans"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" an"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" increased"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" launch"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" schedule"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"4"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"AI"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Technology"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"**\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" x"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"AI"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" bid"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" buy"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Open"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"AI"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" $"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"97"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"4"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" billion"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Major"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" updates"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" coming"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Tesla"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"'s"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Full"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Self"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Driving"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"F"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"SD"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":")"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" software"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"."}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Political"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Social"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"**\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Sc"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"aled"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" back"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" plans"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" new"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" political"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" party"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"  "}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" -"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Warn"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ed"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" potential"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" US"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" recession"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" due"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" past"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" tariffs"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"For"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" more"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" detailed"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" information"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":","}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" you"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" can"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" refer"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" sources"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" like"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" ["}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"The"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" Guardian"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"]("}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"https"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"://"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"www"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".the"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"guardian"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".com"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"technology"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"aug"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"22"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"elon"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-m"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"usk"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-x"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-set"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"tlement"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-twitter"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-em"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ployees"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":")"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":" ["}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"Reuters"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"]("}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"https"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"://"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"www"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".re"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"uters"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":".com"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/business"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/m"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"usk"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"acc"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"uses"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-sec"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-over"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"reach"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-se"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"eks"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-end"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-laws"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"uit"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-over"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-twitter"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-st"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"ake"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"08"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"29"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":"/"}
+
+data: {"type":"text-delta","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd","delta":")."}
+
+data: {"type":"text-end","id":"msg_68b6ae7182a0819fa3f984b8fa14510000fe49ae9df1cacd"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish"}
+
+data: {"type":"data-conversationid","id":"V5NqiVDKoFD5bDVW","data":{"conversationId":"5c03404b-2d32-4001-8e96-deae4848af2f"}}
+
+data: [DONE]
+

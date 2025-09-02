@@ -1,20 +1,23 @@
 "use client"
 
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import ChatSidebar from './chat-sidebar';
 import ChatContent from './chat-content';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
+import { generateId } from 'ai';
 
 export default function ChatUI({ experienceId, userId }) {
+  const [messages, setMessages] = useState([]);
+  const [status, setStatus] = useState('ready');
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [conversationTopic, setConversationTopic] = useState(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
+  const eventSourceRef = useRef(null);
+  const currentAssistantIdRef = useRef(null);
   
   // Update rate limit info periodically
   useEffect(() => {
@@ -43,67 +46,216 @@ export default function ChatUI({ experienceId, userId }) {
     });
   }, [currentConversationId]);
   
-  // console.log('ChatUI props - experienceId:', experienceId, 'userId:', userId);
-
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/experiences/${experienceId}/chat`,
-    }),
-    onFinish: async ({message, messages}) => {
-      console.log('[ChatUI onFinish] CALLBACK TRIGGERED!', message);
-      
-      try {
-        // Look for data-conversationid type in message parts
-        let serverConversationId = null;
-        
-        if (message?.parts && Array.isArray(message.parts)) {
-          const conversationIdPart = message.parts.find(part => part.type === 'data-conversationid');
-          
-          if (conversationIdPart && conversationIdPart.data && conversationIdPart.data.conversationId) {
-            serverConversationId = conversationIdPart.data.conversationId;
-            console.log('[ChatUI onFinish] Using server conversation ID:', serverConversationId);
-          }
-        }
-        
-        // Use server conversation ID if available, otherwise fall back to current state
-        const conversationIdToUse = serverConversationId || currentConversationId;
-        console.log('[ChatUI onFinish] Using conversation ID:', conversationIdToUse);
-        
-        // Validate conversation ID before saving
-        if (!conversationIdToUse || conversationIdToUse.startsWith('temp_')) {
-          console.error('[ChatUI onFinish] Invalid conversation ID, skipping save:', conversationIdToUse);
-          return;
-        }
-        
-        if (message && message.role === 'assistant') {
-          const result = await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationIdToUse,
-              message: message
-            });
-            
-          if (result.error) {
-            console.error('[ChatUI onFinish] Supabase error:', result.error);
-            throw result.error;
-          }
-          
-          console.log('[ChatUI onFinish] Assistant message saved successfully with conversation ID:', conversationIdToUse);
-        }
-
-        if (window.loadConversations) {
-          window.loadConversations();
-        }
-      } catch (error) {
-        console.error('[ChatUI onFinish] Error saving assistant message:', error);
-      }
-    },
-    onError: (error) => {
-      console.error('[ChatUI onError] Error occurred:', error);
+  // SSE subscription for active conversation via Redis-backed events
+  useEffect(() => {
+    // cleanup previous
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
-  });
+    currentAssistantIdRef.current = null;
 
-  // Removed resumeStream visibility/focus handler
+    if (!currentConversationId || String(currentConversationId).startsWith('temp_')) return;
+
+    let reconnectAttempts = 0;
+    let hbTimeout = null;
+
+    const resetHeartbeat = () => {
+      if (hbTimeout) clearTimeout(hbTimeout);
+      // If no message received within 25s, mark as connecting
+      hbTimeout = setTimeout(() => {
+        setStatus('connecting');
+      }, 25000);
+    };
+
+    const open = () => {
+      const es = new EventSource(`/api/experiences/${experienceId}/conversations/${currentConversationId}/events`);
+      eventSourceRef.current = es;
+      setStatus('connecting');
+      resetHeartbeat();
+
+      es.addEventListener('ping', () => {
+        resetHeartbeat();
+      });
+
+      es.addEventListener('message', () => {
+        // noop; handled by onmessage
+      });
+
+      es.onmessage = (ev) => {
+        resetHeartbeat();
+        try {
+          const evt = JSON.parse(ev.data);
+          if (!evt || typeof evt !== 'object') return;
+
+          if (evt.type === 'connected') {
+            // connection message from server; no-op
+          } else if (evt.type === 'start') {
+            setStatus('streaming');
+            currentAssistantIdRef.current = evt.assistantId || null;
+            if (currentAssistantIdRef.current) {
+              setMessages((prev) => {
+                const exists = prev.some((m) => m.id === currentAssistantIdRef.current);
+                if (exists) return prev;
+                return [
+                  ...prev,
+                  { id: currentAssistantIdRef.current, role: 'assistant', content: '', parts: [], status: 'generating' },
+                ];
+              });
+            }
+          } else if (evt.type === 'text-start') {
+            // Begin a new text part within the current assistant message
+            setStatus('streaming');
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            if (!aId || !partId) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? [...m.parts] : [];
+              const existingIndex = parts.findIndex((p) => p && p.type === 'text' && p.id === partId);
+              if (existingIndex === -1) {
+                parts.push({ type: 'text', id: partId, text: '', state: 'streaming' });
+              }
+              return { ...m, parts };
+            }));
+          } else if (evt.type === 'text-delta') {
+            // Append delta to the current text part identified by evt.id
+            setStatus('streaming');
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            const delta = evt.delta || evt.text || '';
+            if (!aId || !partId || !delta) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
+                if (p && p.type === 'text' && p.id === partId) {
+                  return { ...p, text: (p.text || '') + delta, state: 'streaming' };
+                }
+                return p;
+              }) : [];
+              // Fallback: if part does not exist yet, create it
+              const hasPart = parts.some((p) => p && p.type === 'text' && p.id === partId);
+              if (!hasPart) parts.push({ type: 'text', id: partId, text: delta, state: 'streaming' });
+              // Maintain content for backwards-compatibility/fallbacks
+              const content = (m.content || '') + delta;
+              return { ...m, parts, content };
+            }));
+          } else if (evt.type === 'text-end') {
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            if (!aId || !partId) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
+                if (p && p.type === 'text' && p.id === partId) {
+                  return { ...p, state: 'done' };
+                }
+                return p;
+              }) : [];
+              return { ...m, parts };
+            }));
+          } else if (evt.type === 'reasoning-start') {
+            // Begin a new reasoning part
+            setStatus('streaming');
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            if (!aId || !partId) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? [...m.parts] : [];
+              const existingIndex = parts.findIndex((p) => p && p.type === 'reasoning' && p.id === partId);
+              if (existingIndex === -1) {
+                parts.push({ type: 'reasoning', id: partId, text: '', state: 'streaming' });
+              }
+              return { ...m, parts };
+            }));
+          } else if (evt.type === 'reasoning-delta') {
+            // Append delta to the current reasoning part
+            setStatus('streaming');
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            const delta = evt.text || evt.delta || '';
+            if (!aId || !partId || !delta) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
+                if (p && p.type === 'reasoning' && p.id === partId) {
+                  return { ...p, text: (p.text || '') + delta, state: 'streaming' };
+                }
+                return p;
+              }) : [];
+              // Fallback if part did not exist yet
+              const hasPart = parts.some((p) => p && p.type === 'reasoning' && p.id === partId);
+              if (!hasPart) parts.push({ type: 'reasoning', id: partId, text: delta, state: 'streaming' });
+              return { ...m, parts };
+            }));
+          } else if (evt.type === 'reasoning-end') {
+            const aId = currentAssistantIdRef.current;
+            const partId = evt.id;
+            if (!aId || !partId) return;
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== aId) return m;
+              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
+                if (p && p.type === 'reasoning' && p.id === partId) {
+                  return { ...p, state: 'done' };
+                }
+                return p;
+              }) : [];
+              return { ...m, parts };
+            }));
+          } else if (evt.type === 'text-delta') {
+            // Already handled above: kept for backward compatibility if order changes
+            // No-op here to avoid duplicate updates
+          } else if (evt.type && evt.type.startsWith('data-')) {
+            const aId = currentAssistantIdRef.current;
+            if (!aId) return;
+            if (evt.transient) return;
+            setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, parts: [...(m.parts || []), evt] } : m)));
+          } else if (evt.type === 'finish') {
+            setStatus('ready');
+            const aId = currentAssistantIdRef.current;
+            if (aId) {
+              setMessages((prev) => prev.map((m) => {
+                if (m.id !== aId) return m;
+                // Ensure any streaming parts are marked done
+                const parts = Array.isArray(m.parts) ? m.parts.map((p) => (p && p.state === 'streaming' ? { ...p, state: 'done' } : p)) : m.parts;
+                return { ...m, status: 'complete', parts };
+              }));
+            }
+          } else if (evt.type === 'error') {
+            setStatus('error');
+          }
+        } catch (e) {
+          console.error('[ChatUI] SSE parse error:', e);
+        }
+      };
+
+      es.onerror = () => {
+        // Attempt reconnect with backoff
+        if (hbTimeout) clearTimeout(hbTimeout);
+        setStatus('connecting');
+        es.close();
+        const delay = Math.min(1000 * 2 ** reconnectAttempts, 15000);
+        reconnectAttempts += 1;
+        setTimeout(() => {
+          // Only reconnect if still on same conversation and no open ES
+          if (!eventSourceRef.current && currentConversationId) {
+            open();
+          }
+        }, delay);
+      };
+    };
+
+    open();
+
+    return () => {
+      if (hbTimeout) clearTimeout(hbTimeout);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, [currentConversationId, experienceId]);
 
   const handleNewChat = async () => {
     console.log('[ChatUI handleNewChat] ENTRY - Creating new chat...');
@@ -221,7 +373,7 @@ export default function ChatUI({ experienceId, userId }) {
       }
       
       const data = await response.json();
-      setMessages(data.messages);
+      setMessages(data.messages || []);
     } catch (error) {
       console.error('Error loading conversation:', error);
     } finally {
@@ -311,6 +463,19 @@ export default function ChatUI({ experienceId, userId }) {
         return;
       }
       
+      // Save user message to DB optimistically (UIMessage shape)
+      const userMsgId = generateId();
+      const userMessage = { id: userMsgId, role: 'user', content: message.trim(), parts: [{ type: 'text', text: message.trim() }] };
+      setMessages((prev) => [...prev, userMessage]);
+      try {
+        const res = await supabase.from('messages').insert({ conversation_id: conversationId, message: userMessage });
+        if (res.error) {
+          throw res.error;
+        }
+      } catch (e) {
+        console.error('[ChatUI handleSubmit] Failed to persist user message:', e);
+      }
+
       // Get userSessionId from localStorage for X authentication
       const userSessionId = typeof window !== 'undefined' ? 
         localStorage.getItem('x_user_session_id') : null;
@@ -334,22 +499,29 @@ export default function ChatUI({ experienceId, userId }) {
         toast.error('Error tracking message usage. Please try again.');
         return;
       }
-      
-      sendMessage(
-        { text: message.trim() },
-        {
-          body: {
+
+      // Trigger background generation (fire-and-forget), sending current UI messages for context
+      try {
+        const resp = await fetch(`/api/experiences/${experienceId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             user_id: userId,
             conversation_id: conversationId,
-            experience_id: experienceId,
             search: options.search || false,
             model: options.model || 'xai/grok-4',
-            userSessionId: userSessionId // Include X user session for fetchTweets tool
-          }
+            userSessionId: userSessionId,
+            messages: [...messages, userMessage],
+          }),
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(t || 'Failed to start generation');
         }
-      );
-      
-      console.log('[ChatUI handleSubmit] sendMessage called successfully');
+      } catch (e) {
+        console.error('[ChatUI handleSubmit] Failed to start generation:', e);
+        toast.error('Failed to start generation');
+      }
       
       // Generate topic for conversations with no messages yet (non-blocking)
       // This catches both auto-created conversations and manually created empty conversations
@@ -376,7 +548,7 @@ export default function ChatUI({ experienceId, userId }) {
           messages={messages}
           status={status}
           onSubmit={handleSubmit}
-          onStop={stop}
+          onStop={() => {}}
           currentConversationId={currentConversationId}
           experienceId={experienceId}
           conversationTopic={conversationTopic}
