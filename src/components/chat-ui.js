@@ -19,6 +19,12 @@ export default function ChatUI({ experienceId, userId }) {
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
   const eventSourceRef = useRef(null);
   const currentAssistantIdRef = useRef(null);
+  const currentConversationIdRef = useRef(null);
+
+  // Keep a ref in sync with the current conversation ID for async guards
+  useEffect(() => {
+    currentConversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
   
   // Update rate limit info periodically
   useEffect(() => {
@@ -278,23 +284,42 @@ export default function ChatUI({ experienceId, userId }) {
     setIsLoadingConversation(true);
     
     try {
-      // Load messages for this conversation via API
-      const response = await fetch(`/api/experiences/${experienceId}/conversations/${conversationId}`, {
-        method: 'GET',
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to load messages');
-        setIsLoadingConversation(false);
+      const selectedId = conversationId;
+
+      // Fetch messages and persisted topic/title in parallel
+      const [response, convo] = await Promise.all([
+        fetch(`/api/experiences/${experienceId}/conversations/${selectedId}`, { method: 'GET' }),
+        supabase
+          .from('conversations')
+          .select('title')
+          .eq('id', selectedId)
+          .maybeSingle(),
+      ]);
+
+      // If the user switched conversations while we were fetching, ignore results
+      if (currentConversationIdRef.current !== selectedId) {
         return;
       }
-      
-      const data = await response.json();
-      setMessages(data.messages || []);
+
+      if (!response.ok) {
+        console.error('Failed to load messages');
+      } else {
+        const data = await response.json();
+        setMessages(data.messages || []);
+      }
+
+      if (!convo.error) {
+        setConversationTopic(convo.data?.title || null);
+      } else {
+        console.warn('[ChatUI] Failed to load conversation title:', convo.error);
+      }
     } catch (error) {
       console.error('Error loading conversation:', error);
     } finally {
-      setIsLoadingConversation(false);
+      // Only clear loading state if still on the same conversation
+      if (currentConversationIdRef.current === conversationId) {
+        setIsLoadingConversation(false);
+      }
     }
   };
 
@@ -302,6 +327,7 @@ export default function ChatUI({ experienceId, userId }) {
   const generateConversationTopic = async (message, conversationId) => {
     try {
       console.log('[ChatUI] Generating topic for conversation:', conversationId);
+      const requestConvId = conversationId;
       const response = await fetch(`/api/experiences/${experienceId}/topic`, {
         method: 'POST',
         headers: {
@@ -315,13 +341,16 @@ export default function ChatUI({ experienceId, userId }) {
       if (response.ok) {
         const data = await response.json();
         console.log('[ChatUI] Generated topic:', data.topic);
-        setConversationTopic(data.topic);
+        // Update header only if the same conversation is still active
+        if (currentConversationIdRef.current === requestConvId) {
+          setConversationTopic(data.topic);
+        }
         
         // Also update the conversation title in the database
         await supabase
           .from('conversations')
           .update({ title: data.topic })
-          .eq('id', conversationId);
+          .eq('id', requestConvId);
         
         // Refresh conversations in sidebar
         if (window.loadConversations) {
