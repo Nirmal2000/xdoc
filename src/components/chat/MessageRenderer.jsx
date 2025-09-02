@@ -16,6 +16,7 @@ import { Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 import { TweetPartsRenderer } from "./TweetPartsRenderer";
 import { ToolPartRenderer } from "./ToolPartRenderer";
 import { Markdown } from "@/components/ui/markdown";
+import { StreamingText } from "@/components/ui/streaming-text";
 /**
  * Component for rendering individual messages with their complex part structures
  */
@@ -56,7 +57,11 @@ export function MessageRenderer({
             key={key}
             className="text-foreground prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs flex-1 rounded-lg bg-transparent mb-2 dark:prose-invert"            
           >
-            <Markdown>{part.text}</Markdown>
+            <StreamingText
+              text={part.text}
+              animate={isLastMessage && status === 'streaming'}
+              markdown
+            />
           </MessageContent>
         );
       }
@@ -212,7 +217,11 @@ function AssistantMessage({
         <MessageContent
           className="text-foreground prose prose-sm prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs flex-1 rounded-lg bg-transparent p-0 dark:prose-invert"
         >
-          <Markdown>{fallbackText}</Markdown>
+          <StreamingText
+            text={fallbackText}
+            animate={isLastMessage && status === 'streaming'}
+            markdown
+          />
         </MessageContent>
       )}
       
