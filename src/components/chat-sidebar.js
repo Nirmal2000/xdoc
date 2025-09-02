@@ -108,7 +108,7 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
   }, []);
 
   return (
-    <Sidebar variant="floating" collapsible="offcanvas">
+    <Sidebar variant="sidebar" collapsible="offcanvas">
       <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-2 py-4">
         <div className="flex flex-row items-center gap-2 px-2">
           <img src="/logo.png" alt="X Doctor" className="h-8 w-auto" />
