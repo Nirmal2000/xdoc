@@ -97,7 +97,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
         isRecording={voiceInput.isRecording}
         onVoiceRecording={handleVoiceRecording}
         isSubmitDisabled={chatInput.isSubmitDisabled(status)}
-        isInputDisabled={chatInput.isInputDisabled()}
+        isInputDisabled={chatInput.isInputDisabled(status)}
         placeholder={chatInput.getPlaceholder()}
         selectedModel={chatInput.selectedModel}
         onModelChange={chatInput.setSelectedModel}

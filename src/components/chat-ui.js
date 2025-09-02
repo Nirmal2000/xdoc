@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
 import { generateId } from 'ai';
+import { readUIMessageStream } from 'ai';
 
 export default function ChatUI({ experienceId, userId }) {
   const [messages, setMessages] = useState([]);
@@ -57,203 +58,119 @@ export default function ChatUI({ experienceId, userId }) {
 
     if (!currentConversationId || String(currentConversationId).startsWith('temp_')) return;
 
-    let reconnectAttempts = 0;
-    let hbTimeout = null;
+    setStatus('connecting');
 
-    const resetHeartbeat = () => {
-      if (hbTimeout) clearTimeout(hbTimeout);
-      // If no message received within 25s, mark as connecting
-      hbTimeout = setTimeout(() => {
-        setStatus('connecting');
-      }, 25000);
-    };
+    // Keep a persistent EventSource; partition chunks per message and
+    // reduce each message using readUIMessageStream for progressive snapshots.
+    const es = new EventSource(`/api/experiences/${experienceId}/conversations/${currentConversationId}/events`);
+    eventSourceRef.current = es;
 
-    const open = () => {
-      const es = new EventSource(`/api/experiences/${experienceId}/conversations/${currentConversationId}/events`);
-      eventSourceRef.current = es;
-      setStatus('connecting');
-      resetHeartbeat();
+    // Per-message stream controller and task
+    let currentController = null;
+    let currentStream = null;
+    let cancelled = false;
 
-      es.addEventListener('ping', () => {
-        resetHeartbeat();
+    const startNewMessageReducer = () => {
+      // Close previous if any (should already be finished)
+      try { currentController?.close?.(); } catch {}
+
+      currentStream = new ReadableStream({
+        start(controller) {
+          currentController = controller;
+        },
+        cancel() {
+          try { currentController?.close?.(); } catch {}
+          currentController = null;
+        }
       });
 
-      es.addEventListener('message', () => {
-        // noop; handled by onmessage
-      });
-
-      es.onmessage = (ev) => {
-        resetHeartbeat();
+      (async () => {
         try {
-          const evt = JSON.parse(ev.data);
-          if (!evt || typeof evt !== 'object') return;
+          for await (const ui of readUIMessageStream({
+            stream: currentStream,
+            terminateOnError: true,
+            onError: (err) => console.error('[ChatUI] readUIMessageStream error:', err),
+          })) {
+            if (cancelled) break;
+            const snapshot = {
+              ...ui,
+              parts: Array.isArray(ui.parts) ? ui.parts.filter((p) => !p?.transient) : ui.parts,
+            };
 
-          if (evt.type === 'connected') {
-            // connection message from server; no-op
-          } else if (evt.type === 'start') {
+            currentAssistantIdRef.current = snapshot.id;
+
+            setMessages((prev) => {
+              const idx = prev.findIndex((m) => m.id === snapshot.id);
+              if (idx === -1) return [...prev, snapshot];
+              const next = prev.slice();
+              next[idx] = snapshot;
+              return next;
+            });
+
             setStatus('streaming');
-            currentAssistantIdRef.current = evt.assistantId || null;
-            if (currentAssistantIdRef.current) {
-              setMessages((prev) => {
-                const exists = prev.some((m) => m.id === currentAssistantIdRef.current);
-                if (exists) return prev;
-                return [
-                  ...prev,
-                  { id: currentAssistantIdRef.current, role: 'assistant', content: '', parts: [], status: 'generating' },
-                ];
-              });
-            }
-          } else if (evt.type === 'text-start') {
-            // Begin a new text part within the current assistant message
-            setStatus('streaming');
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            if (!aId || !partId) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? [...m.parts] : [];
-              const existingIndex = parts.findIndex((p) => p && p.type === 'text' && p.id === partId);
-              if (existingIndex === -1) {
-                parts.push({ type: 'text', id: partId, text: '', state: 'streaming' });
-              }
-              return { ...m, parts };
-            }));
-          } else if (evt.type === 'text-delta') {
-            // Append delta to the current text part identified by evt.id
-            setStatus('streaming');
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            const delta = evt.delta || evt.text || '';
-            if (!aId || !partId || !delta) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
-                if (p && p.type === 'text' && p.id === partId) {
-                  return { ...p, text: (p.text || '') + delta, state: 'streaming' };
-                }
-                return p;
-              }) : [];
-              // Fallback: if part does not exist yet, create it
-              const hasPart = parts.some((p) => p && p.type === 'text' && p.id === partId);
-              if (!hasPart) parts.push({ type: 'text', id: partId, text: delta, state: 'streaming' });
-              // Maintain content for backwards-compatibility/fallbacks
-              const content = (m.content || '') + delta;
-              return { ...m, parts, content };
-            }));
-          } else if (evt.type === 'text-end') {
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            if (!aId || !partId) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
-                if (p && p.type === 'text' && p.id === partId) {
-                  return { ...p, state: 'done' };
-                }
-                return p;
-              }) : [];
-              return { ...m, parts };
-            }));
-          } else if (evt.type === 'reasoning-start') {
-            // Begin a new reasoning part
-            setStatus('streaming');
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            if (!aId || !partId) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? [...m.parts] : [];
-              const existingIndex = parts.findIndex((p) => p && p.type === 'reasoning' && p.id === partId);
-              if (existingIndex === -1) {
-                parts.push({ type: 'reasoning', id: partId, text: '', state: 'streaming' });
-              }
-              return { ...m, parts };
-            }));
-          } else if (evt.type === 'reasoning-delta') {
-            // Append delta to the current reasoning part
-            setStatus('streaming');
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            const delta = evt.text || evt.delta || '';
-            if (!aId || !partId || !delta) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
-                if (p && p.type === 'reasoning' && p.id === partId) {
-                  return { ...p, text: (p.text || '') + delta, state: 'streaming' };
-                }
-                return p;
-              }) : [];
-              // Fallback if part did not exist yet
-              const hasPart = parts.some((p) => p && p.type === 'reasoning' && p.id === partId);
-              if (!hasPart) parts.push({ type: 'reasoning', id: partId, text: delta, state: 'streaming' });
-              return { ...m, parts };
-            }));
-          } else if (evt.type === 'reasoning-end') {
-            const aId = currentAssistantIdRef.current;
-            const partId = evt.id;
-            if (!aId || !partId) return;
-            setMessages((prev) => prev.map((m) => {
-              if (m.id !== aId) return m;
-              const parts = Array.isArray(m.parts) ? m.parts.map((p) => {
-                if (p && p.type === 'reasoning' && p.id === partId) {
-                  return { ...p, state: 'done' };
-                }
-                return p;
-              }) : [];
-              return { ...m, parts };
-            }));
-          } else if (evt.type === 'text-delta') {
-            // Already handled above: kept for backward compatibility if order changes
-            // No-op here to avoid duplicate updates
-          } else if (evt.type && evt.type.startsWith('data-')) {
-            const aId = currentAssistantIdRef.current;
-            if (!aId) return;
-            if (evt.transient) return;
-            setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, parts: [...(m.parts || []), evt] } : m)));
-          } else if (evt.type === 'finish') {
-            setStatus('ready');
-            const aId = currentAssistantIdRef.current;
-            if (aId) {
-              setMessages((prev) => prev.map((m) => {
-                if (m.id !== aId) return m;
-                // Ensure any streaming parts are marked done
-                const parts = Array.isArray(m.parts) ? m.parts.map((p) => (p && p.state === 'streaming' ? { ...p, state: 'done' } : p)) : m.parts;
-                return { ...m, status: 'complete', parts };
-              }));
-            }
-          } else if (evt.type === 'error') {
+          }
+          if (!cancelled) setStatus('ready');
+        } catch (err) {
+          if (!cancelled) {
+            console.error('[ChatUI] stream error:', err);
             setStatus('error');
           }
-        } catch (e) {
-          console.error('[ChatUI] SSE parse error:', e);
         }
-      };
-
-      es.onerror = () => {
-        // Attempt reconnect with backoff
-        if (hbTimeout) clearTimeout(hbTimeout);
-        setStatus('connecting');
-        es.close();
-        const delay = Math.min(1000 * 2 ** reconnectAttempts, 15000);
-        reconnectAttempts += 1;
-        setTimeout(() => {
-          // Only reconnect if still on same conversation and no open ES
-          if (!eventSourceRef.current && currentConversationId) {
-            open();
-          }
-        }, delay);
-      };
+      })();
     };
 
-    open();
+    es.addEventListener('ping', () => {
+      // Heartbeat: keep connection alive; do not change UI status
+    });
+
+    es.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'connected') return;
+        if (data.type === 'start' && !data.messageId) return; // ignore custom
+
+        if (data.type === 'start' && data.messageId) {
+          // Begin a new assistant message stream
+          setStatus('streaming');
+          startNewMessageReducer();
+        }
+
+        // For robustness: if any non-connected event arrives without an explicit start,
+        // ensure we show streaming state and have a reducer ready.
+        if (!currentController && data.type !== 'finish' && data.type !== 'abort') {
+          startNewMessageReducer();
+        }
+        if (data.type !== 'finish' && data.type !== 'abort') {
+          setStatus('streaming');
+        }
+
+        // Forward this chunk to the current per-message controller (if any)
+        if (currentController) {
+          try { currentController.enqueue(data); } catch {}
+        }
+
+        if (data.type === 'finish' || data.type === 'abort') {
+          try { currentController?.close?.(); } catch {}
+          currentController = null;
+          setStatus('ready');
+        }
+      } catch (e) {
+        console.error('[ChatUI] SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      setStatus('connecting');
+      // keep ES open; server will attempt reconnects automatically if needed
+    };
 
     return () => {
-      if (hbTimeout) clearTimeout(hbTimeout);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      cancelled = true;
+      try { currentController?.close?.(); } catch {}
+      currentController = null;
+      try { es.close(); } catch {}
+      eventSourceRef.current = null;
     };
   }, [currentConversationId, experienceId]);
 
@@ -499,6 +416,9 @@ export default function ChatUI({ experienceId, userId }) {
         toast.error('Error tracking message usage. Please try again.');
         return;
       }
+
+      // Indicate submission immediately so UI shows loader/disabled state
+      setStatus('submitted');
 
       // Trigger background generation (fire-and-forget), sending current UI messages for context
       try {

@@ -63,17 +63,11 @@ export function useVoiceInput(voiceRecording) {
   };
 
   // Real-time transcript updates
+  // Note: Effects must return a cleanup function or nothing.
+  // Do not return derived values from useEffect. The updated prompt is
+  // computed on demand via getUpdatedPrompt() and applied by the caller.
   useEffect(() => {
-    if (isRecording) {
-      const realTimeTranscript = getTranscriptText();
-      if (realTimeTranscript.trim()) {
-        // Return updated prompt for parent component to use
-        return originalPrompt + (originalPrompt ? ' ' : '') + realTimeTranscript;
-      } else {
-        // If no transcript yet, keep original prompt
-        return originalPrompt;
-      }
-    }
+    // No-op effect to react to transcript changes if needed in future.
   }, [transcripts, isRecording, getTranscriptText, originalPrompt]);
 
   return {
@@ -142,6 +136,7 @@ export function useChatInput(onSubmit, currentConversationId, userId) {
   };
 
   const isInputDisabled = (status) => {
+    // Keep textbox editable at all times except during conversation creation
     return currentConversationId?.startsWith('temp_');
   };
 

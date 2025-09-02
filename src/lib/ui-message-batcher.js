@@ -1,5 +1,5 @@
-// Batches 'text-delta' UIMessageChunk events by word count with a time-based fallback.
-// Preserves all non-text events as-is.
+// Batches 'text-delta' and 'reasoning-delta' UIMessageChunk events by word count
+// with a time-based fallback. Preserves all other events as-is.
 
 const DEFAULT_WORDS_PER_CHUNK = 10;
 const DEFAULT_MAX_LATENCY_MS = 350;
@@ -14,26 +14,27 @@ export function createTextDeltaBatcherStream(srcStream, options = {}) {
 
   return new ReadableStream({
     async start(controller) {
-      const buffers = new Map(); // id -> { text: string, words: number, lastEmitAt: number, providerMetadata: any }
+      // key: `${emitType}:${id}` where emitType is 'text-delta' or 'reasoning-delta'
+      const buffers = new Map(); // key -> { emitType, id, text, words, lastEmitAt, providerMetadata }
       let closed = false;
 
-      const flush = (id) => {
-        const buf = buffers.get(id);
+      const flush = (key) => {
+        const buf = buffers.get(key);
         if (!buf || !buf.text) return;
-        controller.enqueue({ type: 'text-delta', id, delta: buf.text, providerMetadata: buf.providerMetadata });
-        buffers.set(id, { text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: buf.providerMetadata });
+        controller.enqueue({ type: buf.emitType, id: buf.id, delta: buf.text, providerMetadata: buf.providerMetadata });
+        buffers.set(key, { ...buf, text: '', words: 0, lastEmitAt: Date.now() });
       };
 
       const flushAll = () => {
-        for (const id of buffers.keys()) flush(id);
+        for (const key of buffers.keys()) flush(key);
       };
 
       const interval = setInterval(() => {
         if (closed) return;
         const now = Date.now();
-        for (const [id, buf] of buffers) {
+        for (const [key, buf] of buffers) {
           if (buf.text && now - (buf.lastEmitAt || 0) >= maxLatencyMs) {
-            flush(id);
+            flush(key);
           }
         }
       }, Math.max(100, Math.floor(maxLatencyMs / 2)));
@@ -42,25 +43,53 @@ export function createTextDeltaBatcherStream(srcStream, options = {}) {
         for await (const chunk of srcStream) {
           switch (chunk.type) {
             case 'text-start': {
-              buffers.set(chunk.id, { text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata });
+              const key = `text-delta:${chunk.id}`;
+              buffers.set(key, { emitType: 'text-delta', id: chunk.id, text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata });
               controller.enqueue(chunk);
               break;
             }
             case 'text-delta': {
-              const existing = buffers.get(chunk.id) || { text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata };
-              existing.text += chunk.delta;
+              const key = `text-delta:${chunk.id}`;
+              const existing = buffers.get(key) || { emitType: 'text-delta', id: chunk.id, text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata };
+              const delta = chunk.delta ?? chunk.text ?? '';
+              existing.text += delta;
               existing.words += countWords(chunk.delta);
               if (chunk.providerMetadata) existing.providerMetadata = chunk.providerMetadata;
-              buffers.set(chunk.id, existing);
+              buffers.set(key, existing);
 
               if (existing.words >= wordsPerChunk) {
-                flush(chunk.id);
+                flush(key);
               }
               break;
             }
             case 'text-end': {
               // Ensure any remaining text is flushed before ending
-              flush(chunk.id);
+              flush(`text-delta:${chunk.id}`);
+              controller.enqueue(chunk);
+              break;
+            }
+            case 'reasoning-start': {
+              const key = `reasoning-delta:${chunk.id}`;
+              buffers.set(key, { emitType: 'reasoning-delta', id: chunk.id, text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata });
+              controller.enqueue(chunk);
+              break;
+            }
+            case 'reasoning-delta': {
+              const key = `reasoning-delta:${chunk.id}`;
+              const existing = buffers.get(key) || { emitType: 'reasoning-delta', id: chunk.id, text: '', words: 0, lastEmitAt: Date.now(), providerMetadata: chunk.providerMetadata };
+              const delta = chunk.delta ?? chunk.text ?? '';
+              existing.text += delta;
+              existing.words += countWords(delta);
+              if (chunk.providerMetadata) existing.providerMetadata = chunk.providerMetadata;
+              buffers.set(key, existing);
+
+              if (existing.words >= wordsPerChunk) {
+                flush(key);
+              }
+              break;
+            }
+            case 'reasoning-end': {
+              flush(`reasoning-delta:${chunk.id}`);
               controller.enqueue(chunk);
               break;
             }
@@ -83,10 +112,9 @@ export function createTextDeltaBatcherStream(srcStream, options = {}) {
         try { clearInterval(interval); } catch {}
         closed = true;
         // Final safety flush
-        try { for (const id of buffers.keys()) flush(id); } catch {}
+        try { for (const key of buffers.keys()) flush(key); } catch {}
         controller.close();
       }
     },
   });
 }
-

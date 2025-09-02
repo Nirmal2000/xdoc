@@ -41,10 +41,9 @@ const MessageContent = ({
   className,
   ...props
 }) => {
-  const classNames = cn(
-    "rounded-lg p-2 text-foreground bg-secondary prose break-words whitespace-normal",
-    className
-  )
+  // Do not apply prose by default to avoid unintended spacing/line-height
+  const base = "rounded-lg p-2 text-foreground bg-secondary break-words whitespace-normal";
+  const classNames = cn(base, className);
 
   return markdown ? (
     <Markdown className={classNames} {...props}>

@@ -165,6 +165,7 @@ export function MessageRenderer({
 
   const messageContent = renderMessageParts(message);
   const fallbackText = getFallbackContent(message);
+  const hasRenderable = (Array.isArray(messageContent) && messageContent.length > 0) || (fallbackText && String(fallbackText).trim().length > 0);
 
   return (
     <Message
@@ -180,6 +181,7 @@ export function MessageRenderer({
           fallbackText={fallbackText}
           isLastMessage={isLastMessage}
           status={status}
+          hasRenderable={hasRenderable}
           messageVotes={messageVotes}
           messageId={message.id}
           onCopyMessage={onCopyMessage}
@@ -201,13 +203,16 @@ function AssistantMessage({
   fallbackText, 
   isLastMessage, 
   status,
+  hasRenderable,
   messageVotes, 
   messageId,
   onCopyMessage,
   onUpvote,
   onDownvote 
 }) {
-  const canShowActions = !(isLastMessage && (status === 'streaming' || status === 'submitted'));
+  // Show actions for assistant message only after the current response has finished
+  // and there is something renderable. Prevents transient flash before first chunk.
+  const canShowActions = (!isLastMessage || status === 'ready') && !!hasRenderable;
   return (
     <div className="group flex w-full flex-col gap-0">
       {/* Render parts in their original order */}
@@ -277,7 +282,7 @@ function AssistantMessage({
 function UserMessage({ fallbackText, onCopyMessage }) {
   return (
     <div className="group flex flex-col items-end gap-1">
-      <MessageContent className="bg-muted text-primary max-w-[95%] rounded-3xl px-5 py-2.5 sm:max-w-[90%]">
+      <MessageContent className="not-prose inline-block break-normal whitespace-normal bg-muted text-primary max-w-[95%] rounded-3xl px-5 py-2.5 sm:max-w-[90%]">
         {fallbackText}
       </MessageContent>
       <MessageActions

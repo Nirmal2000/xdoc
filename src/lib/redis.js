@@ -1,7 +1,7 @@
 let RedisClient = null;
 
 // Lazy load ioredis if available
-function getRedis() {
+export function getRedis() {
   if (RedisClient) return RedisClient;
   try {
     const Redis = require('ioredis');
@@ -28,6 +28,13 @@ function getRedis() {
   }
 }
 
+function jsonReplacer(_key, value) {
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'function' || typeof value === 'symbol') return undefined;
+  // Drop circular refs gracefully by relying on JSON.stringify default behavior with a try/catch higher up
+  return value;
+}
+
 export async function publishRedis(channel, payload) {
   const client = getRedis();
   if (!client) return;
@@ -35,9 +42,36 @@ export async function publishRedis(channel, payload) {
     if (!client.status || client.status === 'end') {
       await client.connect();
     }
-    await client.publish(channel, JSON.stringify(payload));
+    // Ensure non-JSON primitives (e.g., BigInt) don't break publishing
+    const serialized = JSON.stringify(payload, jsonReplacer);
+    await client.publish(channel, serialized);
   } catch (e) {
     console.error('[Redis] publish error:', e);
+  }
+}
+
+// Publish to Redis Stream with optional trimming and TTL.
+// - key: stream key (e.g., `stream:chat:<expId>:<convId>`)
+// - payload: arbitrary JSON (serialized under field 'd')
+// - options: { maxLen?: number, ttlSec?: number }
+export async function publishStream(key, payload, options = {}) {
+  const client = getRedis();
+  if (!client) return null;
+  const { maxLen = 2000, ttlSec = 600 } = options;
+  try {
+    if (!client.status || client.status === 'end') {
+      await client.connect();
+    }
+    const data = JSON.stringify(payload, jsonReplacer);
+    // XADD with approximate trimming to keep memory bounded
+    const id = await client.xadd(key, 'MAXLEN', '~', String(maxLen), '*', 'd', data);
+    if (ttlSec && ttlSec > 0) {
+      try { await client.expire(key, ttlSec); } catch {}
+    }
+    return id;
+  } catch (e) {
+    console.error('[Redis] stream publish error:', e);
+    return null;
   }
 }
 

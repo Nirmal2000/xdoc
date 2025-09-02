@@ -14,7 +14,7 @@ import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
 import { createTextDeltaBatcherStream } from '@/lib/ui-message-batcher';
-import { publishRedis } from '@/lib/redis';
+import { publishStream, getRedis } from '@/lib/redis';
 
 export const maxDuration = 30;
 
@@ -70,11 +70,10 @@ export async function POST(req, { params }) {
 
   // Background generation (continues after response)
   after(async () => {
-    const channel = `chat:${experienceId}:${conversation_id}`;
+    const streamKey = `stream:chat:${experienceId}:${conversation_id}`;
     try {
       // Create a stable message id for the assistant response
       const assistantId = generateId();
-      await publishRedis(channel, { type: 'start', conversationId: conversation_id, assistantId });
 
       // Prefer client-sent messages to avoid redundant DB round trips
       const sourceMessages = clientMessages && Array.isArray(clientMessages)
@@ -124,10 +123,7 @@ export async function POST(req, { params }) {
             stopWhen: stepCountIs(5),
             tools: { writeTweet, fetchTweets, liveSearch },
             toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',
-            onFinish: async () => {
-              // Non-persistent, informational part for clients only
-              writer.write({ type: 'data-conversationid', id: generateId(), data: { conversationId: conversation_id }, transient: true });
-            },
+            onFinish: async () => {},
           });
 
           // Stream full UIMessageChunk events, including reasoning, tools, and data parts
@@ -139,18 +135,33 @@ export async function POST(req, { params }) {
 
       for await (const chunk of stream) {
         try {
-          // Fire-and-forget to avoid per-chunk backpressure on network latency
-          publishRedis(channel, { ...chunk, conversationId: conversation_id, ts: Date.now() })
-            .catch((e) => console.error('[Chat Route] Redis publish error:', e));
+          if (chunk.type === 'finish' || chunk.type === 'abort') {
+            // Ensure the terminal chunk is present, then delete the stream.
+            await publishStream(streamKey, chunk, { maxLen: 2000, ttlSec: 900 });
+            try {
+              const client = getRedis();
+              if (client) {
+                if (!client.status || client.status === 'end') {
+                  await client.connect();
+                }
+                await client.del(streamKey);
+              }
+            } catch (e) {
+              console.error('[Chat Route] Failed to delete stream on finish:', e);
+            }
+          } else {
+            // Fire-and-forget for all non-terminal chunks to avoid backpressure
+            publishStream(streamKey, chunk, { maxLen: 2000, ttlSec: 900 });
+          }
         } catch (e) {
-          console.error('[Chat Route] Redis publish error (sync):', e);
+          console.error('[Chat Route] Redis stream publish error (sync):', e);
         }
       }
-      await publishRedis(channel, { type: 'finish', conversationId: conversation_id });
+      // Do not publish an extra finish; the UIMessageStream already includes it
     } catch (error) {
       console.error('[Chat Route] Background generation error:', error);
-      const channel = `chat:${experienceId}:${conversation_id}`;
-      await publishRedis(channel, { type: 'error', conversationId: conversation_id, message: 'Generation failed' });
+      // Best-effort error signal into the stream
+      try { publishStream(streamKey, { type: 'error', message: 'Generation failed' }, { maxLen: 2000, ttlSec: 900 }); } catch {}
     }
   });
 
