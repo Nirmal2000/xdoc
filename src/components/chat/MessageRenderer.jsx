@@ -176,6 +176,7 @@ export function MessageRenderer({
           messageContent={messageContent}
           fallbackText={fallbackText}
           isLastMessage={isLastMessage}
+          status={status}
           messageVotes={messageVotes}
           messageId={message.id}
           onCopyMessage={onCopyMessage}
@@ -196,12 +197,14 @@ function AssistantMessage({
   messageContent, 
   fallbackText, 
   isLastMessage, 
+  status,
   messageVotes, 
   messageId,
   onCopyMessage,
   onUpvote,
   onDownvote 
 }) {
+  const canShowActions = !(isLastMessage && (status === 'streaming' || status === 'submitted'));
   return (
     <div className="group flex w-full flex-col gap-0">
       {/* Render parts in their original order */}
@@ -216,47 +219,49 @@ function AssistantMessage({
         </MessageContent>
       )}
       
-      <MessageActions
-        className={cn(
-          "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-          isLastMessage && "opacity-100"
-        )}
-      >
-        <MessageAction tooltip="Copy" delayDuration={100}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            onClick={() => onCopyMessage(fallbackText)}
-          >
-            <Copy />
-          </Button>
-        </MessageAction>
-        <MessageAction tooltip="Upvote" delayDuration={100}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            onClick={() => onUpvote(messageId)}
-          >
-            <ThumbsUp className={cn(
-              messageVotes[messageId] === 'up' && "fill-white"
-            )} />
-          </Button>
-        </MessageAction>
-        <MessageAction tooltip="Downvote" delayDuration={100}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            onClick={() => onDownvote(messageId)}
-          >
-            <ThumbsDown className={cn(
-              messageVotes[messageId] === 'down' && "fill-red-400"
-            )} />
-          </Button>
-        </MessageAction>
-      </MessageActions>
+      {canShowActions && (
+        <MessageActions
+          className={cn(
+            "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+            isLastMessage && "opacity-100"
+          )}
+        >
+          <MessageAction tooltip="Copy" delayDuration={100}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => onCopyMessage(fallbackText)}
+            >
+              <Copy />
+            </Button>
+          </MessageAction>
+          <MessageAction tooltip="Upvote" delayDuration={100}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => onUpvote(messageId)}
+            >
+              <ThumbsUp className={cn(
+                messageVotes[messageId] === 'up' && "fill-white"
+              )} />
+            </Button>
+          </MessageAction>
+          <MessageAction tooltip="Downvote" delayDuration={100}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => onDownvote(messageId)}
+            >
+              <ThumbsDown className={cn(
+                messageVotes[messageId] === 'down' && "fill-red-400"
+              )} />
+            </Button>
+          </MessageAction>
+        </MessageActions>
+      )}
     </div>
   );
 }

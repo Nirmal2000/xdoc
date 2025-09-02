@@ -101,27 +101,33 @@ Current date: ${new Date().toLocaleDateString()}`;
         });
 
         let fullText = '';
+        const WORDS_PER_CHUNK = 10;
+        let wordsSinceLastEmit = 0;
 
-        // Stream the content as it generates
+        // Stream the content as it generates, but batch by ~10 words
         for await (const textPart of result.textStream) {
           fullText += textPart;
-          
-          writer.write({
-            type: 'data-tool-output',
-            id: generationId,
-            data: {
-              text: fullText,
-              index,
-              status: 'streaming',
-              instructions: finalInstructions,
-            },
-          });
+          wordsSinceLastEmit += (textPart.match(/\S+/g) || []).length;
+
+          if (wordsSinceLastEmit >= WORDS_PER_CHUNK) {
+            writer.write({
+              type: 'data-tool-output',
+              id: generationId,
+              data: {
+                text: fullText,
+                index,
+                status: 'streaming',
+                instructions: finalInstructions,
+              },
+            });
+            wordsSinceLastEmit = 0;
+          }
         }
 
         // Debug logging
         console.log('[WriteTweet Tool] Generated content:', fullText);
 
-        // Signal completion
+        // Signal completion (ensure final content is sent)
         writer.write({
           type: 'data-tool-output',
           id: generationId,

@@ -170,25 +170,28 @@ export function createFetchTweetsTool({ writer, ctx }) {
 
         console.log('[FetchTweets Tool] Normalized tweets count:', normalizedTweets.length);
 
-        // Stream all tweets in parallel, word by word
-        const tweetWordArrays = normalizedTweets.map(tweet => tweet.text.split(' '));
-        const tweetProgressArrays = normalizedTweets.map(() => ({ streamedText: '', wordIndex: 0, completed: false }));
+        // Stream all tweets in parallel, batched by words to reduce event count
+        const WORDS_PER_CHUNK = 10;
+        const tweetWordArrays = normalizedTweets.map(tweet => tweet.text.split(/\s+/).filter(Boolean));
+        const tweetProgressArrays = normalizedTweets.map(() => ({ streamedText: '', lastEmittedChunk: 0, completed: false }));
         
-        console.log(`[FetchTweets Tool] Starting parallel streaming for ${normalizedTweets.length} tweets`);
+        console.log(`[FetchTweets Tool] Starting parallel streaming for ${normalizedTweets.length} tweets (chunks of ${WORDS_PER_CHUNK} words)`);
         
         // Create promises for each tweet's streaming process
         const streamingPromises = normalizedTweets.map(async (tweet, tweetIndex) => {
           const words = tweetWordArrays[tweetIndex];
+          const totalChunks = Math.ceil(words.length / WORDS_PER_CHUNK);
           
-          console.log(`[FetchTweets Tool] Starting parallel stream for tweet ${tweetIndex + 1} with ${words.length} words`);
+          console.log(`[FetchTweets Tool] Parallel stream for tweet ${tweetIndex + 1}: ${words.length} words, ${totalChunks} chunks`);
           
-          for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
-            const word = words[wordIndex];
-            tweetProgressArrays[tweetIndex].streamedText += (wordIndex === 0 ? '' : ' ') + word;
-            tweetProgressArrays[tweetIndex].wordIndex = wordIndex;
+          for (let start = 0, chunkIndex = 0; start < words.length; start += WORDS_PER_CHUNK, chunkIndex++) {
+            const chunkWords = words.slice(start, start + WORDS_PER_CHUNK);
+            const chunkText = chunkWords.join(' ');
+            tweetProgressArrays[tweetIndex].streamedText += (start === 0 ? '' : ' ') + chunkText;
+            tweetProgressArrays[tweetIndex].lastEmittedChunk = chunkIndex;
             
-            // Check if this tweet is complete
-            if (wordIndex === words.length - 1) {
+            // Mark completion on final chunk
+            if (start + WORDS_PER_CHUNK >= words.length) {
               tweetProgressArrays[tweetIndex].completed = true;
             }
             
@@ -213,9 +216,9 @@ export function createFetchTweetsTool({ writer, ctx }) {
               },
             });
             
-            // Small delay between words for streaming effect (each tweet streams independently)
-            if (wordIndex < words.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 30)); // Add slight randomization for natural effect
+            // Slight delay between chunks for streaming effect
+            if (!allCompleted) {
+              await new Promise(resolve => setTimeout(resolve, 120 + Math.random() * 60));
             }
           }
         });

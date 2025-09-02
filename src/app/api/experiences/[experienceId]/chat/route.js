@@ -13,6 +13,7 @@ import { join } from 'path';
 import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
+import { createTextDeltaBatcherStream } from '@/lib/ui-message-batcher';
 
 export const maxDuration = 30;
 
@@ -142,8 +143,13 @@ export async function POST(req, { params }) {
         }
       });
       
-      // Merge the text stream into the UI message stream
-      writer.merge(result.toUIMessageStream());
+      // Merge the model stream into the UI message stream with batching
+      const uiStream = result.toUIMessageStream();
+      const batchedStream = createTextDeltaBatcherStream(uiStream, {
+        wordsPerChunk: 10,
+        maxLatencyMs: 350,
+      });
+      writer.merge(batchedStream);
     },
   });
 

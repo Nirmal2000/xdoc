@@ -103,6 +103,8 @@ export default function ChatUI({ experienceId, userId }) {
     }
   });
 
+  // Removed resumeStream visibility/focus handler
+
   const handleNewChat = async () => {
     console.log('[ChatUI handleNewChat] ENTRY - Creating new chat...');
     
