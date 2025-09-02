@@ -11,7 +11,7 @@ import { Markdown } from "@/components/ui/markdown";
 export const StreamingText = memo(function StreamingText({
   text = "",
   animate = true,
-  speed = 40,
+  speed = 80,
   markdown = true,
 }) {
   const [displayed, setDisplayed] = useState(animate ? "" : (text || ""));
@@ -24,6 +24,7 @@ export const StreamingText = memo(function StreamingText({
   const rafRef = useRef(null);
   const lastTimeRef = useRef(0);
   const animatingRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const stopAnimation = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -34,11 +35,13 @@ export const StreamingText = memo(function StreamingText({
   const step = useCallback(
     (time) => {
       const full = targetRef.current;
-      const typewriterDelay = Math.max(10, 120 - speed); // higher speed -> shorter delay
+      // Tighter mapping: faster delay and larger stride for high speeds
+      const typewriterDelay = Math.max(5, 100 - speed); // higher speed -> shorter delay
+      const stride = Math.min(8, Math.max(1, Math.floor(speed / 20))); // type multiple chars per tick at higher speeds
 
       if (indexRef.current < full.length) {
         if (time - lastTimeRef.current > typewriterDelay) {
-          indexRef.current += 1;
+          indexRef.current = Math.min(full.length, indexRef.current + stride);
           setDisplayed(full.slice(0, indexRef.current));
           lastTimeRef.current = time;
         }
@@ -56,11 +59,20 @@ export const StreamingText = memo(function StreamingText({
   useEffect(() => {
     targetRef.current = text || "";
 
-    if (!animate) {
-      // Show full immediately when not animating
-      setDisplayed(targetRef.current);
-      indexRef.current = targetRef.current.length;
-      stopAnimation();
+    if (!mountedRef.current) {
+      // First mount behavior: if not animating, show full; else start from 0
+      if (!animate) {
+        setDisplayed(targetRef.current);
+        indexRef.current = targetRef.current.length;
+        stopAnimation();
+      } else if (indexRef.current < targetRef.current.length && !animatingRef.current) {
+        animatingRef.current = true;
+        rafRef.current = requestAnimationFrame((t) => {
+          lastTimeRef.current = t;
+          step(t);
+        });
+      }
+      mountedRef.current = true;
       return;
     }
 
@@ -69,8 +81,9 @@ export const StreamingText = memo(function StreamingText({
       indexRef.current = targetRef.current.length;
     }
 
-    // Start animation if not already running and there is remaining text
-    if (!animatingRef.current && indexRef.current < targetRef.current.length) {
+    // When animate becomes false mid-stream, keep finishing the current target smoothly.
+    // Start animation if not already running and there is remaining text.
+    if (indexRef.current < targetRef.current.length && !animatingRef.current) {
       animatingRef.current = true;
       rafRef.current = requestAnimationFrame((t) => {
         lastTimeRef.current = t;
@@ -78,9 +91,7 @@ export const StreamingText = memo(function StreamingText({
       });
     }
 
-    return () => {
-      // Do not stop on prop change; only on unmount or when animate is false
-    };
+    // No cleanup on prop change; only on unmount.
   }, [text, animate, step, stopAnimation]);
 
   // Cleanup on unmount
@@ -93,4 +104,3 @@ export const StreamingText = memo(function StreamingText({
   if (markdown) return <Markdown>{content}</Markdown>;
   return <>{content}</>;
 });
-

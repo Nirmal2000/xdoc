@@ -60,6 +60,7 @@ export function MessageRenderer({
             <StreamingText
               text={part.text}
               animate={isLastMessage && status === 'streaming'}
+              speed={110}
               markdown
             />
           </MessageContent>
@@ -223,6 +224,7 @@ function AssistantMessage({
           <StreamingText
             text={fallbackText}
             animate={isLastMessage && status === 'streaming'}
+            speed={110}
             markdown
           />
         </MessageContent>

@@ -146,8 +146,8 @@ export async function POST(req, { params }) {
       // Merge the model stream into the UI message stream with batching
       const uiStream = result.toUIMessageStream();
       const batchedStream = createTextDeltaBatcherStream(uiStream, {
-        wordsPerChunk: 10,
-        maxLatencyMs: 350,
+        wordsPerChunk: 4,
+        maxLatencyMs: 120,
       });
       writer.merge(batchedStream);
     },
