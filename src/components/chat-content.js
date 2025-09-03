@@ -8,7 +8,6 @@ import {
 import { ScrollButton } from "@/components/ui/scroll-button"
 import { useVoiceRecording } from "@/hooks/useVoiceRecording"
 import { useSimpleX } from "@/hooks/useSimpleXAuth"
-import { useIframeSdk } from "@whop/react"
 import QuickTasks from "@/components/quick-tasks"
 import { ChatHeader, MessageRenderer, ChatInput } from "@/components/chat"
 import { useMessageActions, useVoiceInput, useChatInput } from "@/hooks/useChatInteractions"
@@ -20,9 +19,6 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   
   // Voice recording hook
   const voiceRecording = useVoiceRecording();
-
-  // Whop iframe SDK hook
-  const iframeSdk = useIframeSdk();
 
   // Custom hooks for chat functionality
   const { messageVotes, handleCopyMessage, handleUpvote, handleDownvote } = useMessageActions();

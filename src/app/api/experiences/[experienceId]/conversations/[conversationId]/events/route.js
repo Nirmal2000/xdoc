@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req, { params }) {
   const { experienceId, conversationId } = await params;
   const streamKey = `stream:chat:${experienceId}:${conversationId}`;
+  const url = new URL(req.url);
+  const afterId = url.searchParams.get('afterId');
 
   const headers = {
     'Content-Type': 'text/event-stream',
@@ -42,6 +44,39 @@ export async function GET(req, { params }) {
       let closed = false;
       let cursor = '0-0';
 
+      // If an afterId is provided, seek to the last entry that matches it
+      if (afterId) {
+        try {
+          const batchSize = 200;
+          let seekCursor = '-';
+          let lastMatch = null;
+          while (true) {
+            const entries = await client.xrange(streamKey, seekCursor === '-' ? '-' : `(${seekCursor}`, '+', 'COUNT', batchSize);
+            if (!Array.isArray(entries) || entries.length === 0) break;
+            for (const [id, fields] of entries) {
+              seekCursor = id;
+              let payload = null;
+              for (let i = 0; i < fields.length; i += 2) {
+                const k = fields[i];
+                const v = fields[i + 1];
+                if (k === 'd') {
+                  try { payload = JSON.parse(v); } catch { payload = null; }
+                  break;
+                }
+              }
+              if (!payload) continue;
+              if (payload.id === afterId || payload.toolCallId === afterId) {
+                lastMatch = id;
+              }
+            }
+            if (entries.length < batchSize) break;
+          }
+          if (lastMatch) cursor = lastMatch;
+        } catch (e) {
+          send({ type: 'warning', message: 'resume seek failed; streaming from start' });
+        }
+      }
+
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
       const readLoop = async () => {
@@ -61,6 +96,8 @@ export async function GET(req, { params }) {
                   }
                 }
                 if (payload == null) continue;
+                // If resuming, skip the exact afterId part events
+                if (afterId && (payload.id === afterId || payload.toolCallId === afterId)) continue;
                 send(payload, undefined, id);
               }
             } else {
