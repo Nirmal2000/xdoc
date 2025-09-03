@@ -3,7 +3,6 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   stepCountIs,
-  generateId,
 } from 'ai';
 // import {xai} from "@ai-sdk/xai"
 import { after } from 'next/server';
@@ -15,6 +14,7 @@ import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
 import { createTextDeltaBatcherStream } from '@/lib/ui-message-batcher';
 import { publishStream, getRedis } from '@/lib/redis';
+import { createUIStreamDBPersister } from '@/lib/ui-stream-persister';
 
 export const maxDuration = 30;
 
@@ -72,8 +72,21 @@ export async function POST(req, { params }) {
   after(async () => {
     const streamKey = `stream:chat:${experienceId}:${conversation_id}`;
     try {
-      // Create a stable message id for the assistant response
-      const assistantId = generateId();
+      // Ensure only one active stream per conversation: clear any stale stream
+      try {
+        const client = getRedis();
+        if (client) {
+          if (!client.status || client.status === 'end') {
+            await client.connect();
+          }
+          await client.del(streamKey);
+        }
+      } catch (e) {
+        console.warn('[Chat Route] Failed to clear previous stream:', e?.message || e);
+      }
+
+      // Manual persistence handler (stores completed parts with ids)
+      const persister = createUIStreamDBPersister({ conversationId: conversation_id });
 
       // Prefer client-sent messages to avoid redundant DB round trips
       const sourceMessages = clientMessages && Array.isArray(clientMessages)
@@ -92,23 +105,6 @@ export async function POST(req, { params }) {
       const modelMessages = convertToModelMessages(normalized);
 
       const stream = createUIMessageStream({
-        // Ensure the final response message has our assistantId
-        generateMessageId: () => assistantId,
-        // Persist the final UIMessage once, in UIMessage shape only
-        onFinish: async ({ responseMessage }) => {
-          try {
-            await supabase
-              .from('messages')
-              .upsert({ conversation_id, message: {
-                id: responseMessage.id,
-                role: responseMessage.role,
-                metadata: responseMessage.metadata,
-                parts: responseMessage.parts || [],
-              }});
-          } catch (e) {
-            console.error('[Chat Route] Persist final UIMessage failed:', e);
-          }
-        },
         execute: ({ writer }) => {
           writer.write({ type: 'data-notification', data: { message: 'Generating response...', level: 'info' }, transient: true });
 
@@ -128,30 +124,24 @@ export async function POST(req, { params }) {
 
           // Stream full UIMessageChunk events, including reasoning, tools, and data parts
           const uiStream = result.toUIMessageStream();
-          const batchedStream = createTextDeltaBatcherStream(uiStream, { wordsPerChunk: 4, maxLatencyMs: 120 });
+          const batchedStream = createTextDeltaBatcherStream(uiStream, { wordsPerChunk: 20, maxLatencyMs: 120 });
           writer.merge(batchedStream);
         },
       });
 
+      // Ensure publish ordering: collect non-terminal publishes, flush before terminal
+      const inflight = [];
       for await (const chunk of stream) {
         try {
+          // Persist completed parts based on protocol
+          await persister.onChunk(chunk);
           if (chunk.type === 'finish' || chunk.type === 'abort') {
-            // Ensure the terminal chunk is present, then delete the stream.
+            // Flush inflight before publishing terminal event; keep stream key (TTL handles cleanup)
+            await Promise.all(inflight.splice(0));
             await publishStream(streamKey, chunk, { maxLen: 2000, ttlSec: 900 });
-            try {
-              const client = getRedis();
-              if (client) {
-                if (!client.status || client.status === 'end') {
-                  await client.connect();
-                }
-                await client.del(streamKey);
-              }
-            } catch (e) {
-              console.error('[Chat Route] Failed to delete stream on finish:', e);
-            }
           } else {
             // Fire-and-forget for all non-terminal chunks to avoid backpressure
-            publishStream(streamKey, chunk, { maxLen: 2000, ttlSec: 900 });
+            inflight.push(publishStream(streamKey, chunk, { maxLen: 2000, ttlSec: 900 }));
           }
         } catch (e) {
           console.error('[Chat Route] Redis stream publish error (sync):', e);

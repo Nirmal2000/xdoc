@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { checkRateLimit, recordMessage, getRateLimitInfo } from '@/lib/rate-limit';
 import { generateId } from 'ai';
-import { readUIMessageStream } from 'ai';
+import { createUIClientReducer } from '@/lib/ui-client-reducer';
 
 export default function ChatUI({ experienceId, userId }) {
   const [messages, setMessages] = useState([]);
@@ -20,6 +20,10 @@ export default function ChatUI({ experienceId, userId }) {
   const eventSourceRef = useRef(null);
   const currentAssistantIdRef = useRef(null);
   const currentConversationIdRef = useRef(null);
+  const resumeAfterIdRef = useRef(null);
+  const basePartsRef = useRef({});
+  const lastAssistantIdRef = useRef(null);
+  const firstEventLoggedRef = useRef(false);
 
   // Keep a ref in sync with the current conversation ID for async guards
   useEffect(() => {
@@ -63,67 +67,35 @@ export default function ChatUI({ experienceId, userId }) {
     currentAssistantIdRef.current = null;
 
     if (!currentConversationId || String(currentConversationId).startsWith('temp_')) return;
+    // If we are loading messages from DB for this conversation, wait to compute resume cursor
+    if (isLoadingConversation) return;
 
     setStatus('connecting');
 
-    // Keep a persistent EventSource; partition chunks per message and
-    // reduce each message using readUIMessageStream for progressive snapshots.
-    const es = new EventSource(`/api/experiences/${experienceId}/conversations/${currentConversationId}/events`);
+    // Create a reducer to assemble UI snapshots from SSE events
+    const reducer = createUIClientReducer({
+      getBaseParts: (id) => (basePartsRef.current && basePartsRef.current[id]) || [],
+    });
+    // Prime reducer with last assistant id so resume works when 'start' isn't replayed
+    if (lastAssistantIdRef.current) {
+      try {
+        reducer.primeMessage(lastAssistantIdRef.current);
+        console.log('[ChatUI resume] Primed reducer with last assistant id:', lastAssistantIdRef.current);
+      } catch (e) {
+        console.warn('[ChatUI resume] Failed to prime reducer', e);
+      }
+    }
+    const afterIdParam = resumeAfterIdRef.current ? `?afterId=${encodeURIComponent(resumeAfterIdRef.current)}` : '';
+    if (afterIdParam) {
+      console.log('[ChatUI resume] Connecting SSE with afterId:', resumeAfterIdRef.current);
+    } else {
+      console.log('[ChatUI resume] Connecting SSE without afterId');
+    }
+    const es = new EventSource(`/api/experiences/${experienceId}/conversations/${currentConversationId}/events${afterIdParam}`);
     eventSourceRef.current = es;
+    firstEventLoggedRef.current = false;
 
-    // Per-message stream controller and task
-    let currentController = null;
-    let currentStream = null;
     let cancelled = false;
-
-    const startNewMessageReducer = () => {
-      // Close previous if any (should already be finished)
-      try { currentController?.close?.(); } catch {}
-
-      currentStream = new ReadableStream({
-        start(controller) {
-          currentController = controller;
-        },
-        cancel() {
-          try { currentController?.close?.(); } catch {}
-          currentController = null;
-        }
-      });
-
-      (async () => {
-        try {
-          for await (const ui of readUIMessageStream({
-            stream: currentStream,
-            terminateOnError: true,
-            onError: (err) => console.error('[ChatUI] readUIMessageStream error:', err),
-          })) {
-            if (cancelled) break;
-            const snapshot = {
-              ...ui,
-              parts: Array.isArray(ui.parts) ? ui.parts.filter((p) => !p?.transient) : ui.parts,
-            };
-
-            currentAssistantIdRef.current = snapshot.id;
-
-            setMessages((prev) => {
-              const idx = prev.findIndex((m) => m.id === snapshot.id);
-              if (idx === -1) return [...prev, snapshot];
-              const next = prev.slice();
-              next[idx] = snapshot;
-              return next;
-            });
-
-            setStatus('streaming');
-          }
-          if (!cancelled) setStatus('ready');
-        } catch (err) {
-          if (!cancelled) {
-            console.error('[ChatUI] stream error:', err);
-            setStatus('error');
-          }
-        }
-      })();
-    };
 
     es.addEventListener('ping', () => {
       // Heartbeat: keep connection alive; do not change UI status
@@ -132,35 +104,27 @@ export default function ChatUI({ experienceId, userId }) {
     es.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data);
+        if (!firstEventLoggedRef.current) {
+          console.log('[ChatUI SSE] First event after (re)connect:', data?.type);
+          firstEventLoggedRef.current = true;
+        }
         if (!data || typeof data !== 'object') return;
         if (data.type === 'connected') return;
         if (data.type === 'start' && !data.messageId) return; // ignore custom
 
-        if (data.type === 'start' && data.messageId) {
-          // Begin a new assistant message stream
-          setStatus('streaming');
-          startNewMessageReducer();
+        const snap = reducer.handleEvent(data);
+        if (snap && snap.id) {
+          currentAssistantIdRef.current = snap.id;
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === snap.id);
+            if (idx === -1) return [...prev, snap];
+            const next = prev.slice();
+            next[idx] = snap;
+            return next;
+          });
         }
-
-        // For robustness: if any non-connected event arrives without an explicit start,
-        // ensure we show streaming state and have a reducer ready.
-        if (!currentController && data.type !== 'finish' && data.type !== 'abort') {
-          startNewMessageReducer();
-        }
-        if (data.type !== 'finish' && data.type !== 'abort') {
-          setStatus('streaming');
-        }
-
-        // Forward this chunk to the current per-message controller (if any)
-        if (currentController) {
-          try { currentController.enqueue(data); } catch {}
-        }
-
-        if (data.type === 'finish' || data.type === 'abort') {
-          try { currentController?.close?.(); } catch {}
-          currentController = null;
-          setStatus('ready');
-        }
+        if (data.type === 'finish' || data.type === 'abort') setStatus('ready');
+        else if (data.type !== 'connected' && data.type !== 'ping') setStatus('streaming');
       } catch (e) {
         console.error('[ChatUI] SSE parse error:', e);
       }
@@ -173,12 +137,10 @@ export default function ChatUI({ experienceId, userId }) {
 
     return () => {
       cancelled = true;
-      try { currentController?.close?.(); } catch {}
-      currentController = null;
       try { es.close(); } catch {}
       eventSourceRef.current = null;
     };
-  }, [currentConversationId, experienceId]);
+  }, [currentConversationId, experienceId, isLoadingConversation]);
 
   const handleNewChat = async () => {
     console.log('[ChatUI handleNewChat] ENTRY - Creating new chat...');
@@ -305,7 +267,36 @@ export default function ChatUI({ experienceId, userId }) {
         console.error('Failed to load messages');
       } else {
         const data = await response.json();
-        setMessages(data.messages || []);
+        const loaded = data.messages || [];
+        setMessages(loaded);
+        // Prepare base parts map and resume cursor from DB-loaded messages
+        try {
+          basePartsRef.current = {};
+          for (const m of loaded) {
+            if (m && m.role === 'assistant' && Array.isArray(m.parts)) {
+              basePartsRef.current[m.id] = m.parts;
+            }
+          }
+          const lastAssistant = [...loaded].reverse().find((m) => m?.role === 'assistant' && Array.isArray(m.parts) && m.parts.length > 0);
+          if (lastAssistant) {
+            const rev = [...lastAssistant.parts].reverse();
+            const lastWithId = rev.find((p) => (p && (p.id || p.toolCallId)) && (p.state === 'done' || p.state === 'output-available' || p.state === 'output-error' || p.state === undefined));
+            resumeAfterIdRef.current = lastWithId?.id || lastWithId?.toolCallId || null;
+            lastAssistantIdRef.current = lastAssistant.id;
+            console.log('[ChatUI resume] DB load computed:', {
+              lastAssistantId: lastAssistantIdRef.current,
+              afterId: resumeAfterIdRef.current,
+            });
+          } else {
+            resumeAfterIdRef.current = null;
+            lastAssistantIdRef.current = null;
+            console.log('[ChatUI resume] No assistant message found in DB for resume');
+          }
+        } catch (e) {
+          console.warn('[ChatUI] Failed computing resume cursor:', e);
+          resumeAfterIdRef.current = null;
+          lastAssistantIdRef.current = null;
+        }
       }
 
       if (!convo.error) {
