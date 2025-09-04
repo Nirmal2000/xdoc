@@ -52,12 +52,14 @@ const MemoizedMarkdownBlock = memo(function MarkdownBlock({
   components = INITIAL_COMPONENTS
 }) {
   return (
-    <ReactMarkdown 
-      remarkPlugins={[remarkGfm, remarkBreaks]} 
-      components={components}
-    >
-      {content}
-    </ReactMarkdown>
+    <div className="prose prose-sm text-[15px] text-foreground dark:text-foreground dark:prose-invert prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-li:text-foreground prose-blockquote:text-foreground prose-code:text-foreground prose-a:text-foreground prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs">
+      <ReactMarkdown 
+        remarkPlugins={[remarkGfm, remarkBreaks]} 
+        components={components}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }, function propsAreEqual(prevProps, nextProps) {
   return prevProps.content === nextProps.content

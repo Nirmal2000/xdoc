@@ -73,8 +73,7 @@ export function createUIStreamDBPersister({ conversationId }) {
   }
 
   async function upsertToolPart({ toolName, toolCallId, patch, defaultState = 'input-available' }) {
-    // Ignore writeTweet tool persistence; its UI comes from data-tool-output
-    if (toolName === 'writeTweet') return;
+    // Persist all tool parts, including writeTweet, so DB has full state
     if (!assistantMessageId || !toolCallId) return;
     try {
       const { data: existing, error: selErr } = await supabase
