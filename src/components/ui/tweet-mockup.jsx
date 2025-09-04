@@ -139,7 +139,7 @@ export const TweetMockup = memo(
 
           {/* Content Area */}
           <div className="w-full flex-1 pt-0.5">
-            <div className="mt-1 text-foreground text-[15px] space-y-3 whitespace-pre-wrap">
+            <div className="mt-1 text-foreground text-[15px] space-y-3 whitespace-pre-wrap prose prose-sm dark:prose-invert">
               {isLoading ? (
                 <div className="space-y-2">
                   <motion.div

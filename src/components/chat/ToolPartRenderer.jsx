@@ -18,9 +18,9 @@ export function ToolPartRenderer({ part, keyPrefix }) {
     return renderFetchTweetsTool(part, key);
   }
 
-  // Handle write tweets tool parts
+  // Explicitly ignore writeTweet tool parts; handled via data-tool-output events
   if (part.type === 'tool-writeTweet') {
-    return renderWriteTweetTool(part, key);
+    return null;
   }
 
   return null;
@@ -104,41 +104,4 @@ function renderFetchTweetsTool(part, key) {
   );
 }
 
-function renderWriteTweetTool(part, key) {
-  const toolState = part.state || 'input-streaming';
-  const toolInput = part.input || {};
-  const toolOutput = part.output;
-
-  // Determine the appropriate state for the Tool component
-  let displayState = 'input-streaming';
-  let outputContent = undefined;
-  let errorText = undefined;
-
-  if (toolState === 'output-available' && toolOutput) {
-    if (toolOutput.success) {
-      displayState = 'output-available';
-      outputContent = 'Tweets written';
-    } else {
-      displayState = 'output-error';
-      errorText = toolOutput.error || 'Failed to write tweets';
-    }
-  } else if (toolState === 'input-available') {
-    displayState = 'input-streaming'; // Keep showing as processing
-  }
-
-  return (
-    <div key={key} className="mb-4">
-      <Tool
-        className="w-full"
-        toolPart={{
-          type: 'writeTweet',
-          state: displayState,
-          input: toolInput,
-          output: outputContent,
-          errorText: errorText,
-          toolCallId: part.toolCallId
-        }}
-      />
-    </div>
-  );
-}
+// No renderer for writeTweet; TweetPartsRenderer handles data-tool-output

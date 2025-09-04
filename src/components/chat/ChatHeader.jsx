@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { toast } from "sonner";
 
@@ -53,9 +54,8 @@ export function ChatHeader({ userInfo, authChecked, loading, login, logout, conv
       <SidebarTrigger className="-ml-1" />
       
       <div className="flex flex-row items-center gap-2">
-        <img src="/logo.png" alt="X doc" className="h-8 w-auto" />
         {conversationTopic && (
-          <div className="text-sm text-muted-foreground bg-accent px-2 py-1 rounded-md">
+          <div className="text-lg font-bold text-white">
             {conversationTopic}
           </div>
         )}
@@ -86,21 +86,26 @@ export function ChatHeader({ userInfo, authChecked, loading, login, logout, conv
 
 function AuthenticatedUser({ userInfo, onLogout }) {
   return (
-    <>
-      {userInfo?.profile_image_url ? (
-        <img
-          src={userInfo.profile_image_url}
-          alt={userInfo?.name || 'User'}
-          className="h-8 w-8 rounded-full border"
-        />
-      ) : null}
-      <div className="text-sm text-muted-foreground mr-2">
-        {userInfo?.name} (@{userInfo?.username})
-      </div>
-      <Button variant="outline" className="rounded-full" onClick={onLogout}>
-        Remove X
-      </Button>
-    </>
+    <Select onValueChange={(val) => { if (val === 'logout') onLogout(); }}>
+      <SelectTrigger className="h-auto border-0 shadow-none p-0 pr-4 bg-transparent mr-2">
+        <div className="flex items-center gap-2 cursor-pointer">
+          {userInfo?.profile_image_url ? (
+            <img
+              src={userInfo.profile_image_url}
+              alt={userInfo?.name || 'User'}
+              className="h-8 w-8 rounded-full border"
+            />
+          ) : null}
+          <div className="text-left">
+            <div className="text-sm text-white leading-none">{userInfo?.name}</div>
+            <div className="text-xs text-muted-foreground leading-none mt-1">(@{userInfo?.username})</div>
+          </div>
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="logout">Remove X</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 

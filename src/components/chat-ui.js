@@ -407,7 +407,7 @@ export default function ChatUI({ experienceId, userId }) {
       
       // Save user message to DB optimistically (UIMessage shape)
       const userMsgId = generateId();
-      const userMessage = { id: userMsgId, role: 'user', content: message.trim(), parts: [{ type: 'text', text: message.trim() }] };
+      const userMessage = { id: userMsgId, role: 'user', parts: [{ type: 'text', text: message.trim() }] };
       setMessages((prev) => [...prev, userMessage]);
       try {
         const res = await supabase.from('messages').insert({ conversation_id: conversationId, message: userMessage });
