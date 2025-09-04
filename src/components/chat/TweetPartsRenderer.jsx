@@ -158,7 +158,7 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
                   <StreamingMessage
                     text={tweetData.text.trim()}
                     animate={isStreaming}
-                    speed={30}
+                    speed={110}
                   />
                   {/* separator matching text span */}
                   <div className="h-px bg-zinc-300 dark:bg-zinc-700 w-full max-w-full" />
