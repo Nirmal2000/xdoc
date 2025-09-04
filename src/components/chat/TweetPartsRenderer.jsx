@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from 'react';
 import { TweetMockup } from "@/components/ui/tweet-mockup";
+import { TweetToolbox } from "@/components/ui/tweet-toolbox";
 import { StreamingMessage } from "@/components/ui/streaming-message";
 import { toast } from "sonner";
 
@@ -21,6 +23,35 @@ export function TweetPartsRenderer({ part, userInfo, isLastMessage, keyPrefix })
   }
 
   return null;
+}
+
+function EditableTweetWrapper({ tweetData, userInfo, isLastMessage, children }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(tweetData.text || '');
+
+  const handleEdit = () => {
+    setEditedText(tweetData.text || '');
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    tweetData.text = editedText;
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedText(tweetData.text || '');
+    setIsEditing(false);
+  };
+
+  return children({
+    isEditing,
+    editedText,
+    onTextChange: setEditedText,
+    onEdit: handleEdit,
+    onSave: handleSave,
+    onCancel: handleCancel
+  });
 }
 
 function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
@@ -59,30 +90,100 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
   if (tweetData.text && (tweetData.status === 'streaming' || tweetData.status === 'complete')) {
     const isStreaming = tweetData.status === 'streaming' && isLastMessage;
 
+    const experienceId = window.location.pathname?.split('/experiences/')[1]?.split('/')[0] || '';
+    const [instruction, setInstruction] = useState('');
+    const [media, setMedia] = useState([]);
+
+    const onAIClick = async () => {
+      const prompt = `Tweet: ${tweetData.text || ''}\n${instruction ? `Instructions: ${instruction}` : ''}`;
+      try {
+        const res = await fetch(`/api/experiences/${experienceId}/image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ string: prompt })
+        });
+        const urls = await res.json();
+        if (res.ok && Array.isArray(urls)) {
+          setMedia(urls);
+        } else {
+          console.error('Failed to generate images', urls);
+        }
+      } catch (e) {
+        console.error('Error generating images', e);
+      }
+    };
+
     return (
-      <div key={key} className="mb-4">
-        <TweetMockup
-          index={tweetData.index || 0}
-          text={tweetData.text.trim()}
-          showPostButton={true}
-          account={{
-            name: userInfo?.name || 'Your Name',
-            username: userInfo?.username || 'your_username',
-            verified: false,
-            avatar: userInfo?.profile_image_url
-          }}
-          onApply={(text) => {
-            navigator.clipboard.writeText(text);
-            toast.success('Tweet copied to clipboard!');
-          }}
-        >
-          <StreamingMessage
-            text={tweetData.text.trim()}
-            animate={isStreaming}
-            speed={30}
-          />
-        </TweetMockup>
-      </div>
+      <EditableTweetWrapper tweetData={tweetData} userInfo={userInfo} isLastMessage={isLastMessage}>
+        {({ isEditing, editedText, onTextChange, onEdit, onSave, onCancel }) => (
+          <div key={key} className="mb-4">
+            <TweetMockup
+              index={tweetData.index || 0}
+              text={isEditing ? editedText : tweetData.text.trim()}
+              showPostButton={false}
+              isEditing={isEditing}
+              onTextChange={onTextChange}
+              media={media}
+              account={{
+                name: userInfo?.name || 'Your Name',
+                username: userInfo?.username || 'your_username',
+                verified: false,
+                avatar: userInfo?.profile_image_url
+              }}
+              onApply={(text) => {
+                navigator.clipboard.writeText(text);
+                toast.success('Tweet copied to clipboard!');
+              }}
+            >
+              {isEditing ? (
+                // During editing, only show the toolbox with save/cancel buttons
+                <TweetToolbox
+                  isEditing={isEditing}
+                  onEdit={onEdit}
+                  onSave={onSave}
+                  onCancel={onCancel}
+                  onPost={() => {
+                    const text = tweetData.text?.trim?.() || '';
+                    if (text) {
+                      const encodedText = encodeURIComponent(text);
+                      window.open(`https://x.com/compose/post?text=${encodedText}`, '_blank');
+                    }
+                  }}
+                  value={instruction}
+                  onChange={setInstruction}
+                  onAIClick={onAIClick}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <StreamingMessage
+                    text={tweetData.text.trim()}
+                    animate={isStreaming}
+                    speed={30}
+                  />
+                  {/* separator matching text span */}
+                  <div className="h-px bg-zinc-300 dark:bg-zinc-700 w-full max-w-full" />
+                  <TweetToolbox
+                    isEditing={isEditing}
+                    onEdit={onEdit}
+                    onSave={onSave}
+                    onCancel={onCancel}
+                    onPost={() => {
+                      const text = tweetData.text?.trim?.() || '';
+                      if (text) {
+                        const encodedText = encodeURIComponent(text);
+                        window.open(`https://x.com/compose/post?text=${encodedText}`, '_blank');
+                      }
+                    }}
+                    value={instruction}
+                    onChange={setInstruction}
+                    onAIClick={onAIClick}
+                  />
+                </div>
+              )}
+            </TweetMockup>
+          </div>
+        )}
+      </EditableTweetWrapper>
     );
   }
 

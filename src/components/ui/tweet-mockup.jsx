@@ -19,11 +19,14 @@ export const TweetMockup = memo(
     isLoading = false,
     isLineClampEnabled = false,
     showPostButton = false,
+    isEditing = false,
+    onTextChange,
     account = {
       name: 'Demo User',
       username: 'demo_user',
       verified: false
     },
+    media = [],
     onApply,
     className
   }) => {
@@ -50,27 +53,7 @@ export const TweetMockup = memo(
       }
     }
 
-    const handlePostToX = () => {
-      let tweetText = text
-      
-      // If no text prop, try to extract from children
-      if (!tweetText && children) {
-        if (typeof children === 'string') {
-          tweetText = children
-        } else if (children.props && children.props.text) {
-          // For StreamingMessage components
-          tweetText = children.props.text
-        } else if (typeof children === 'object' && children.props && children.props.children) {
-          // For div elements with text content
-          tweetText = children.props.children
-        }
-      }
-      
-      if (tweetText) {
-        const encodedText = encodeURIComponent(tweetText.trim())
-        window.open(`https://x.com/compose/post?text=${encodedText}`, '_blank')
-      }
-    }
+    // removed Post button interaction per new design
 
     return (
       <motion.div
@@ -165,19 +148,46 @@ export const TweetMockup = memo(
                   />
                 </div>
               ) : (
-                children || (
-                  <div 
-                    className={cn(
-                      isLineClampEnabled && "overflow-hidden"
+                isEditing ? (
+                  <>
+                    <textarea
+                      value={text}
+                      onChange={(e) => onTextChange?.(e.target.value)}
+                      className="w-full min-h-[80px] p-2 bg-transparent border border-gray-200 dark:border-gray-700 rounded-md resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 text-foreground"
+                      placeholder="Edit your tweet..."
+                      autoFocus
+                    />
+                    {children}
+                  </>
+                ) : (
+                  <div>
+                    {children || (
+                      <div
+                        className={cn(
+                          isLineClampEnabled && "overflow-hidden"
+                        )}
+                        style={isLineClampEnabled ? {
+                          display: '-webkit-box',
+                          WebkitLineClamp: 5,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        } : {}}
+                      >
+                        {text}
+                      </div>
                     )}
-                    style={isLineClampEnabled ? {
-                      display: '-webkit-box',
-                      WebkitLineClamp: 5,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    } : {}}
-                  >
-                    {text}
+                    {media && media.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {media.map((url, i) => (
+                          <img
+                            key={i}
+                            src={url}
+                            alt=""
+                            className="rounded-lg max-w-full h-auto"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               )}
@@ -185,24 +195,7 @@ export const TweetMockup = memo(
           </div>
         </div>
 
-        {/* Blue Post Button - Bottom Right */}
-        {!isLoading && showPostButton && (text || children) && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
-            className="absolute bottom-3 right-3 z-10"
-          >
-            <Button
-              onClick={handlePostToX}
-              className="bg-[#1DA1F2] hover:bg-[#1a91da] text-white border-0 h-8 px-3 rounded-full font-medium text-sm transition-all duration-200 shadow-lg hover:shadow-xl"
-              size="sm"
-            >
-              <ExternalLink className="w-3 h-3 mr-1.5" />
-              Post
-            </Button>
-          </motion.div>
-        )}
+        {/* Post button removed as requested */}
       </motion.div>
     )
   }

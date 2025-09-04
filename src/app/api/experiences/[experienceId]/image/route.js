@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
 
 export const maxDuration = 30;
 
@@ -12,25 +11,26 @@ export async function POST(req, { params }) {
     const body = await req.json();
     const { messageid, partid, image, string: textPrompt } = body || {};
 
-    if (!messageid) return new Response(JSON.stringify({ error: 'messageid is required' }), { status: 400 });
-    if (!partid) return new Response(JSON.stringify({ error: 'partid is required' }), { status: 400 });
-    if (!image) return new Response(JSON.stringify({ error: 'image is required' }), { status: 400 });
+    // if (!messageid) return new Response(JSON.stringify({ error: 'messageid is required' }), { status: 400 });
+    // if (!partid) return new Response(JSON.stringify({ error: 'partid is required' }), { status: 400 });
+    // if (!image) return new Response(JSON.stringify({ error: 'image is required' }), { status: 400 });
     if (!textPrompt || typeof textPrompt !== 'string') {
       return new Response(JSON.stringify({ error: 'string (text prompt) is required' }), { status: 400 });
     }
 
     const userMsgId = `user-${Date.now()}`;
+    const content = [{ type: 'text', text: String(textPrompt).trim() }];
+    if (image) {
+      content.push({ type: 'image', image });
+    }
     const userMessage = {
       id: userMsgId,
       role: 'user',
-      content: [
-        { type: 'text', text: String(textPrompt).trim() },
-        { type: 'image', image },
-      ],
+      content,
     };
 
     const result = await generateText({
-      model: google('gemini-2.5-flash-image-preview'),
+      model: 'google/gemini-2.5-flash-image-preview',
       messages: [userMessage],
     });
 
@@ -43,7 +43,7 @@ export async function POST(req, { params }) {
     }
 
     const uploadedUrls = [];
-    const baseFolder = `gemini/${experienceId || 'global'}/${messageid}`;
+    const baseFolder = `gemini/${experienceId || 'global'}/temp`; // temp folder since messageid disabled
 
     for (const [index, file] of imageFiles.entries()) {
       const extension = (file.mediaType?.split('/')?.[1] || 'png').toLowerCase();
@@ -66,43 +66,9 @@ export async function POST(req, { params }) {
       if (publicUrl) uploadedUrls.push(publicUrl);
     }
 
-    if (uploadedUrls.length > 0) {
-      try {
-        const { data: rows, error: selErr } = await supabase
-          .from('messages')
-          .select('id, message')
-          .filter('message->>id', 'eq', String(messageid));
-        if (selErr) throw selErr;
-
-        if (Array.isArray(rows)) {
-          for (const row of rows) {
-            const current = row?.message || {};
-            const parts = Array.isArray(current?.parts) ? current.parts.slice() : [];
-            const idx = parts.findIndex(
-              (p) => p && p.type === 'data-tool-output' && String(p.id) === String(partid)
-            );
-            if (idx !== -1) {
-              const part = { ...(parts[idx] || {}) };
-              const data = { ...(part.data || {}) };
-              const urlList = Array.isArray(data.url) ? data.url.slice() : [];
-              for (const u of uploadedUrls) urlList.push(u);
-              data.url = urlList;
-              parts[idx] = { ...part, data };
-
-              await supabase
-                .from('messages')
-                .update({ message: { ...current, parts } })
-                .eq('id', row.id);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[Image Route][POST] Failed to append URLs to data-tool-output:', e);
-      }
-    }
 
     return new Response(
-      JSON.stringify({ success: true, uploaded: uploadedUrls.length, urls: uploadedUrls }),
+      JSON.stringify(uploadedUrls),
       { status: 200 }
     );
   } catch (e) {
