@@ -144,6 +144,11 @@ export default function ChatUI({ experienceId, userId }) {
 
   const handleNewChat = async () => {
     console.log('[ChatUI handleNewChat] ENTRY - Creating new chat...');
+    // Reset resume state to avoid leaking afterId or reducer priming into a new chat
+    resumeAfterIdRef.current = null;
+    lastAssistantIdRef.current = null;
+    basePartsRef.current = {};
+    console.log('[ChatUI handleNewChat] Cleared resume refs for new chat');
     
     // Generate temporary ID for optimistic update
     const tempId = `temp_${Date.now()}`;
@@ -402,7 +407,7 @@ export default function ChatUI({ experienceId, userId }) {
       
       // Save user message to DB optimistically (UIMessage shape)
       const userMsgId = generateId();
-      const userMessage = { id: userMsgId, role: 'user', content: message.trim(), parts: [{ type: 'text', text: message.trim() }] };
+      const userMessage = { id: userMsgId, role: 'user', parts: [{ type: 'text', text: message.trim() }] };
       setMessages((prev) => [...prev, userMessage]);
       try {
         const res = await supabase.from('messages').insert({ conversation_id: conversationId, message: userMessage });

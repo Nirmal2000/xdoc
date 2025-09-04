@@ -1,36 +1,118 @@
-"use client"
+"use client";
 
+import { useState } from "react";
 import { TweetMockup } from "@/components/ui/tweet-mockup";
+import { TweetToolbox } from "@/components/ui/tweet-toolbox";
 import { StreamingMessage } from "@/components/ui/streaming-message";
 import { toast } from "sonner";
 
 /**
  * Component for rendering tweet-related message parts
  */
-export function TweetPartsRenderer({ part, userInfo, isLastMessage, keyPrefix }) {
+export function TweetPartsRenderer({
+  part,
+  userInfo,
+  isLastMessage,
+  keyPrefix,
+}) {
   const key = keyPrefix;
 
   // Handle tweet tool output parts (createTweet only - single tweets)
-  if (part.type === 'data-tool-output' && part.data) {
+  if (part.type === "data-tool-output" && part.data) {
     return renderSingleTweetOutput(part.data, userInfo, isLastMessage, key);
   }
 
   // Handle fetch-tweets-tool output parts
-  if (part.type === 'data-fetch-tweets-tool' && part.data) {
+  if (part.type === "data-fetch-tweets-tool" && part.data) {
     return renderMultipleTweetsOutput(part.data, userInfo, key);
   }
 
   return null;
 }
 
+function EditableTweetWrapper({
+  tweetData,
+  userInfo,
+  isLastMessage,
+  children,
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(tweetData.text || "");
+  const [isRegenLoading, setIsRegenLoading] = useState(false);
+
+  const handleEdit = () => {
+    setEditedText(tweetData.text || "");
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    tweetData.text = editedText;
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedText(tweetData.text || "");
+    setIsEditing(false);
+  };
+
+  const handleRegen = async (instruction = "") => {
+    const experienceId =
+      window.location.pathname?.split("/experiences/")[1]?.split("/")[0] || "";
+
+    setIsRegenLoading(true);
+
+    try {
+      // Create prompt based on current tweet text and instruction
+      const prompt = `Tweet: ${tweetData.text || ""}\n${instruction ? `Instruction: ${instruction}` : ""}`;
+
+      const res = await fetch(
+        `/api/experiences/${experienceId}/generate-text`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: prompt }),
+        },
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.text) {
+          tweetData.text = data.text;
+          setEditedText(data.text);
+          toast.success("Tweet regenerated!");
+        }
+      } else {
+        console.error("Failed to regenerate tweet");
+        toast.error("Failed to regenerate tweet");
+      }
+    } catch (e) {
+      console.error("Error regenerating tweet", e);
+      toast.error("Error regenerating tweet");
+    } finally {
+      setIsRegenLoading(false);
+    }
+  };
+
+  return children({
+    isEditing,
+    editedText,
+    isRegenLoading,
+    onTextChange: setEditedText,
+    onEdit: handleEdit,
+    onSave: handleSave,
+    onCancel: handleCancel,
+    onRegen: handleRegen,
+  });
+}
+
 function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
   // Handle error state
-  if (tweetData.status === 'error') {
+  if (tweetData.status === "error") {
     return (
       <div key={key} className="mb-4">
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-red-600 dark:text-red-400 text-sm">
-            {tweetData.text || 'An error occurred.'}
+            {tweetData.text || "An error occurred."}
           </p>
         </div>
       </div>
@@ -38,17 +120,17 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
   }
 
   // Handle processing state
-  if (tweetData.status === 'processing') {
+  if (tweetData.status === "processing") {
     return (
       <div key={key} className="mb-4">
         <TweetMockup
           index={tweetData.index || 0}
           isLoading={true}
           account={{
-            name: userInfo?.name || 'Your Name',
-            username: userInfo?.username || 'your_username',
+            name: userInfo?.name || "Your Name",
+            username: userInfo?.username || "your_username",
             verified: false,
-            avatar: userInfo?.profile_image_url
+            avatar: userInfo?.profile_image_url,
           }}
         />
       </div>
@@ -56,33 +138,136 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
   }
 
   // Handle streaming and complete states with single tweet content
-  if (tweetData.text && (tweetData.status === 'streaming' || tweetData.status === 'complete')) {
-    const isStreaming = tweetData.status === 'streaming' && isLastMessage;
+  if (
+    tweetData.text &&
+    (tweetData.status === "streaming" || tweetData.status === "complete")
+  ) {
+    const isStreaming = tweetData.status === "streaming" && isLastMessage;
+
+    const experienceId =
+      window.location.pathname?.split("/experiences/")[1]?.split("/")[0] || "";
+    const [instruction, setInstruction] = useState("");
+    const [media, setMedia] = useState([]);
+    const [isAILoading, setIsAILoading] = useState(false);
+
+    const onAIClick = async () => {
+      const prompt = `Tweet: ${tweetData.text || ""}\n${instruction ? `Instructions: ${instruction}` : ""}`;
+      setIsAILoading(true);
+      try {
+        const res = await fetch(`/api/experiences/${experienceId}/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ string: prompt }),
+        });
+        const urls = await res.json();
+        if (res.ok && Array.isArray(urls)) {
+          setMedia(urls);
+        } else {
+          console.error("Failed to generate images", urls);
+        }
+      } catch (e) {
+        console.error("Error generating images", e);
+      } finally {
+        setIsAILoading(false);
+      }
+    };
 
     return (
-      <div key={key} className="mb-4">
-        <TweetMockup
-          index={tweetData.index || 0}
-          text={tweetData.text.trim()}
-          showPostButton={true}
-          account={{
-            name: userInfo?.name || 'Your Name',
-            username: userInfo?.username || 'your_username',
-            verified: false,
-            avatar: userInfo?.profile_image_url
-          }}
-          onApply={(text) => {
-            navigator.clipboard.writeText(text);
-            toast.success('Tweet copied to clipboard!');
-          }}
-        >
-          <StreamingMessage
-            text={tweetData.text.trim()}
-            animate={isStreaming}
-            speed={30}
-          />
-        </TweetMockup>
-      </div>
+      <EditableTweetWrapper
+        tweetData={tweetData}
+        userInfo={userInfo}
+        isLastMessage={isLastMessage}
+      >
+        {({
+          isEditing,
+          editedText,
+          isRegenLoading,
+          onTextChange,
+          onEdit,
+          onSave,
+          onCancel,
+          onRegen,
+        }) => (
+          <div key={key} className="mb-4">
+            <TweetMockup
+              index={tweetData.index || 0}
+              text={isEditing ? editedText : tweetData.text.trim()}
+              showPostButton={false}
+              isEditing={isEditing}
+              onTextChange={onTextChange}
+              media={media}
+              account={{
+                name: userInfo?.name || "Your Name",
+                username: userInfo?.username || "your_username",
+                verified: false,
+                avatar: userInfo?.profile_image_url,
+              }}
+              onApply={(text) => {
+                navigator.clipboard.writeText(text);
+                toast.success("Tweet copied to clipboard!");
+              }}
+            >
+              {isEditing ? (
+                // During editing, only show the toolbox with save/cancel buttons
+                <TweetToolbox
+                  isEditing={isEditing}
+                  onEdit={onEdit}
+                  onSave={onSave}
+                  onCancel={onCancel}
+                  onPost={() => {
+                    const text = tweetData.text?.trim?.() || "";
+                    if (text) {
+                      const encodedText = encodeURIComponent(text);
+                      window.open(
+                        `https://x.com/compose/post?text=${encodedText}`,
+                        "_blank",
+                      );
+                    }
+                  }}
+                  value={instruction}
+                  onChange={setInstruction}
+                  onAIClick={onAIClick}
+                  onRegen={() => onRegen(instruction)}
+                  isAILoading={isAILoading}
+                  isRegenLoading={isRegenLoading}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <StreamingMessage
+                    text={tweetData.text.trim()}
+                    animate={isStreaming}
+                    speed={110}
+                  />
+                  {/* separator matching text span */}
+                  <div className="h-px bg-zinc-300 dark:bg-zinc-700 w-full max-w-full" />
+                  <TweetToolbox
+                    isEditing={isEditing}
+                    onEdit={onEdit}
+                    onSave={onSave}
+                    onCancel={onCancel}
+                    onPost={() => {
+                      const text = tweetData.text?.trim?.() || "";
+                      if (text) {
+                        const encodedText = encodeURIComponent(text);
+                        window.open(
+                          `https://x.com/compose/post?text=${encodedText}`,
+                          "_blank",
+                        );
+                      }
+                    }}
+                    value={instruction}
+                    onChange={setInstruction}
+                    onAIClick={onAIClick}
+                    onRegen={() => onRegen(instruction)}
+                    isAILoading={isAILoading}
+                    isRegenLoading={isRegenLoading}
+                  />
+                </div>
+              )}
+            </TweetMockup>
+          </div>
+        )}
+      </EditableTweetWrapper>
     );
   }
 
@@ -98,12 +283,12 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
 
 function renderMultipleTweetsOutput(fetchData, userInfo, key) {
   // Handle error state
-  if (fetchData.status === 'error') {
+  if (fetchData.status === "error") {
     return (
       <div key={key} className="mb-4">
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-red-600 dark:text-red-400 text-sm">
-            {fetchData.text || 'An error occurred while fetching tweets.'}
+            {fetchData.text || "An error occurred while fetching tweets."}
           </p>
         </div>
       </div>
@@ -111,7 +296,11 @@ function renderMultipleTweetsOutput(fetchData, userInfo, key) {
   }
 
   // Handle tweets array - side-scrollable display
-  if (fetchData.tweets && Array.isArray(fetchData.tweets) && fetchData.tweets.length > 0) {
+  if (
+    fetchData.tweets &&
+    Array.isArray(fetchData.tweets) &&
+    fetchData.tweets.length > 0
+  ) {
     const tweets = fetchData.tweets;
 
     return (
@@ -121,21 +310,24 @@ function renderMultipleTweetsOutput(fetchData, userInfo, key) {
           <div className="flex gap-4 min-w-max">
             {tweets.map((tweet, tweetIndex) => {
               return (
-                <div key={`${key}-tweet-${tweetIndex}`} className="flex-shrink-0 w-80">
+                <div
+                  key={`${key}-tweet-${tweetIndex}`}
+                  className="flex-shrink-0 w-80"
+                >
                   <TweetMockup
                     index={tweetIndex}
                     text={tweet.text}
                     isLineClampEnabled={true}
                     account={{
-                      name: tweet.author.replace('@', ''),
-                      username: tweet.author.replace('@', ''),
+                      name: tweet.author.replace("@", ""),
+                      username: tweet.author.replace("@", ""),
                       verified: false,
-                      avatar: tweet.avatar || userInfo?.profile_image_url
+                      avatar: tweet.avatar || userInfo?.profile_image_url,
                     }}
                     onApply={(text) => {
                       // Copy the full original text
                       navigator.clipboard.writeText(tweet.text);
-                      toast.success('Tweet copied to clipboard!');
+                      toast.success("Tweet copied to clipboard!");
                     }}
                   />
                 </div>

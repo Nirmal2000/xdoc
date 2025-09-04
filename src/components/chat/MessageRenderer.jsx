@@ -103,8 +103,8 @@ export function MessageRenderer({
         );
       }
 
-      // Handle tool parts
-      if (part.type === 'tool-liveSearch' || part.type === 'tool-fetchTweets' || part.type === 'tool-writeTweet') {
+      // Handle tool parts (exclude writeTweet, handled via data-tool-output)
+      if (part.type === 'tool-liveSearch' || part.type === 'tool-fetchTweets') {
         return (
           <ToolPartRenderer
             key={key}

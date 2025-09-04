@@ -8,11 +8,13 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuAction,
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { PlusIcon, Search, Trash2 } from "lucide-react"
+import { PlusIcon, Trash2 } from "lucide-react"
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { CircularLoader } from "@/components/ui/loader";
@@ -109,13 +111,10 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
 
   return (
     <Sidebar variant="sidebar" collapsible="offcanvas">
-      <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-2 py-4">
+      <SidebarHeader className="flex flex-row items-center gap-2 px-2 py-4">
         <div className="flex flex-row items-center gap-2 px-2">
           <img src="/logo.png" alt="X Doctor" className="h-8 w-auto" />
         </div>
-        <Button variant="ghost" className="size-8">
-          <Search className="size-4" />
-        </Button>
       </SidebarHeader>
       <SidebarContent className="pt-4">
         <div className="px-4">
@@ -135,9 +134,13 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
             <SidebarGroupLabel>Recent Conversations</SidebarGroupLabel>
             <SidebarMenu>
               {conversations.map((conversation) => (
-                <div key={conversation.id} className="relative group">
+                <SidebarMenuItem key={conversation.id} className="relative">
                   <SidebarMenuButton
-                    onClick={() => conversation.status !== 'creating' && onSelectConversation(conversation.id)}
+                    onClick={() => {
+                      if (conversation.status === 'creating') return;
+                      if (conversation.id === currentConversationId) return; // ignore click on selected convo
+                      onSelectConversation && onSelectConversation(conversation.id);
+                    }}
                     className={cn(
                       "w-full pr-10",
                       currentConversationId === conversation.id && "bg-accent",
@@ -152,16 +155,16 @@ export default function ChatSidebar({ experienceId, userId, currentConversationI
                     </span>
                   </SidebarMenuButton>
                   {conversation.status !== 'creating' && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 size-6 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
+                    <SidebarMenuAction
+                      showOnHover
+                      aria-label="Delete conversation"
+                      className="text-red-500 hover:text-red-500"
                       onClick={(e) => handleDeleteConversation(conversation.id, e)}
                     >
-                      <Trash2 className="size-3 text-red-500" />
-                    </Button>
+                      <Trash2 className="size-3" />
+                    </SidebarMenuAction>
                   )}
-                </div>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroup>

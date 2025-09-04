@@ -21,6 +21,8 @@ export function createUIClientReducer({ getBaseParts } = {}) {
   const snapshot = () => ({ id: messageId, role: 'assistant', parts: parts.filter((p) => !p?.transient) });
 
   const upsertToolPart = ({ toolName, toolCallId, patch, defaultState = 'input-available' }) => {
+    // Ignore writeTweet tool entirely; handled via data-tool-output events
+    if (toolName === 'writeTweet') return;
     if (!toolCallId) return;
     // Prefer existing part by toolCallId, otherwise infer type from toolName
     const existingIdx = findPartIndexBy((p) => p && p.toolCallId === toolCallId);
