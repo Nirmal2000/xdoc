@@ -85,6 +85,11 @@ function ToolboxControls({
 }) {
   const [showRegenBox, setShowRegenBox] = React.useState(false);
   const [showImageBox, setShowImageBox] = React.useState(false);
+  const [regenFocused, setRegenFocused] = React.useState(false);
+  const [imageFocused, setImageFocused] = React.useState(false);
+  const wrapperRef = React.useRef(null);
+  const regenRef = React.useRef(null);
+  const imageRef = React.useRef(null);
 
   // Close both overlays
   const closeAll = () => {
@@ -92,8 +97,37 @@ function ToolboxControls({
     setShowImageBox(false);
   };
 
+  // Close when clicking outside of the controls/overlays
+  React.useEffect(() => {
+    function handleDocClick(e) {
+      const el = wrapperRef.current;
+      if (!el) return;
+      if (showRegenBox || showImageBox) {
+        if (!el.contains(e.target)) {
+          closeAll();
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleDocClick);
+    return () => document.removeEventListener("mousedown", handleDocClick);
+  }, [showRegenBox, showImageBox]);
+
   return (
-    <div className="relative flex items-center gap-2 flex-1">
+    <div
+      ref={wrapperRef}
+      className="relative flex items-center gap-2 flex-1"
+      onMouseDown={(e) => {
+        // If a pill is open and the click is somewhere in the toolbox
+        // but not inside the pill itself, close it.
+        if (showRegenBox || showImageBox) {
+          const inRegen = regenRef.current?.contains(e.target);
+          const inImage = imageRef.current?.contains(e.target);
+          if (!inRegen && !inImage) {
+            closeAll();
+          }
+        }
+      }}
+    >
       {/* Icon buttons */}
       <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
         <button
@@ -140,18 +174,37 @@ function ToolboxControls({
 
       {/* Overlay: Regen instructions */}
       {showRegenBox && (
-        <div className="absolute top-full left-0 mt-2 z-30 w-[min(420px,90%)]">
-          <div className="flex items-center gap-2 rounded-xl bg-black text-white px-2 py-1 border border-zinc-700 shadow-lg">
+        <div ref={regenRef} className="absolute top-full left-0 mt-2 z-30">
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-full bg-black text-white border border-zinc-700 shadow-md transition-all duration-200",
+              regenFocused ? "w-[360px] px-3 py-1.5" : "w-[240px] px-3 py-1",
+            )}
+            role="dialog"
+            aria-label="Regenerate Tweet"
+          >
+            <RefreshCw className="w-4 h-4 text-zinc-400" />
             <input
               type="text"
               autoFocus
               placeholder="Optional instructions to regen tweet"
               value={value}
               onChange={(e) => onChange(e.target.value)}
+              onFocus={() => setRegenFocused(true)}
+              onBlur={() => setRegenFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onRegen(value);
+                  closeAll();
+                } else if (e.key === "Escape") {
+                  closeAll();
+                }
+              }}
               className="flex-1 h-8 bg-transparent placeholder:text-zinc-400 focus:outline-none"
             />
             <button
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 onRegen(value);
                 closeAll();
               }}
@@ -161,7 +214,8 @@ function ToolboxControls({
               <Check className="w-4 h-4" />
             </button>
             <button
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 closeAll();
               }}
               className="p-1 text-gray-300 hover:text-red-500"
@@ -175,18 +229,37 @@ function ToolboxControls({
 
       {/* Overlay: Image generation instructions */}
       {showImageBox && (
-        <div className="absolute top-full left-0 mt-2 z-30 w-[min(420px,90%)]">
-          <div className="flex items-center gap-2 rounded-xl bg-black text-white px-2 py-1 border border-zinc-700 shadow-lg">
+        <div ref={imageRef} className="absolute top-full left-0 mt-2 z-30">
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-full bg-black text-white border border-zinc-700 shadow-md transition-all duration-200",
+              imageFocused ? "w-[360px] px-3 py-1.5" : "w-[240px] px-3 py-1",
+            )}
+            role="dialog"
+            aria-label="Generate Image"
+          >
+            <ImageIcon className="w-4 h-4 text-zinc-400" />
             <input
               type="text"
               autoFocus
               placeholder="Optional instructions to generate image"
               value={value}
               onChange={(e) => onChange(e.target.value)}
+              onFocus={() => setImageFocused(true)}
+              onBlur={() => setImageFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onAIClick();
+                  closeAll();
+                } else if (e.key === "Escape") {
+                  closeAll();
+                }
+              }}
               className="flex-1 h-8 bg-transparent placeholder:text-zinc-400 focus:outline-none"
             />
             <button
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 onAIClick();
                 closeAll();
               }}
@@ -196,7 +269,8 @@ function ToolboxControls({
               <Check className="w-4 h-4" />
             </button>
             <button
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 closeAll();
               }}
               className="p-1 text-gray-300 hover:text-red-500"
