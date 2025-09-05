@@ -139,6 +139,14 @@ function PromptInputAction({
 }) {
   const { disabled } = usePromptInput()
 
+  if (!tooltip) {
+    return (
+      <div onClick={(e) => e.stopPropagation()} className={className}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <Tooltip {...props}>
       <TooltipTrigger asChild disabled={disabled} onClick={event => event.stopPropagation()}>

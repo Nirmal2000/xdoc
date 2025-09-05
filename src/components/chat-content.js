@@ -13,7 +13,7 @@ import { ChatHeader, MessageRenderer, ChatInput } from "@/components/chat"
 import { useMessageActions, useVoiceInput, useChatInput } from "@/hooks/useChatInteractions"
 import { BarsLoader } from "@/components/ui/loader"
 
-export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation, rateLimitInfo, userId }) {
+export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation, rateLimitInfo, userId, personas }) {
   // Authentication and user info
   const { user: userInfo, checked: authChecked, login, logout, loading } = useSimpleX();
   
@@ -23,7 +23,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
   // Custom hooks for chat functionality
   const { messageVotes, handleCopyMessage, handleUpvote, handleDownvote } = useMessageActions();
   const voiceInput = useVoiceInput(voiceRecording);
-  const chatInput = useChatInput(onSubmit, currentConversationId, userId);
+  const chatInput = useChatInput(onSubmit, currentConversationId, userId, personas);
 
   // Real-time transcript updates
   useEffect(() => {
@@ -88,9 +88,11 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
         onPromptChange={chatInput.setPrompt}
         onSubmit={chatInput.handleSubmit}
         status={status}
-        isSearchEnabled={chatInput.isSearchEnabled}
-        onSearchToggle={chatInput.handleSearchToggle}
+        personas={personas}
+        selectedPersona={chatInput.selectedPersona}
+        onPersonaChange={chatInput.setSelectedPersona}
         isRecording={voiceInput.isRecording}
+        isVoiceStarting={voiceInput.isStarting}
         onVoiceRecording={handleVoiceRecording}
         isSubmitDisabled={chatInput.isSubmitDisabled(status)}
         isInputDisabled={chatInput.isInputDisabled(status)}

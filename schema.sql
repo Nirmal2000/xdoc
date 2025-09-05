@@ -101,3 +101,26 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_conversations_updated_at
     BEFORE UPDATE ON xdoc.conversations
     FOR EACH ROW EXECUTE FUNCTION xdoc.update_updated_at_column();
+
+-- Personas table
+CREATE TABLE IF NOT EXISTS xdoc.personas (
+    userid TEXT NOT NULL REFERENCES xdoc.users(user_id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    persona_prompt TEXT NOT NULL
+);
+
+-- Indexes for personas
+CREATE INDEX IF NOT EXISTS idx_personas_userid ON xdoc.personas(userid);
+
+-- Enable RLS for personas
+ALTER TABLE xdoc.personas ENABLE ROW LEVEL SECURITY;
+
+-- Personas policies
+CREATE POLICY "anon_all_personas" ON xdoc.personas
+    FOR ALL USING (auth.role() = 'anon');
+
+CREATE POLICY "user_own_personas" ON xdoc.personas
+    FOR ALL USING (
+        auth.role() = 'authenticated' AND
+        userid = auth.jwt() ->> 'sub'
+    );

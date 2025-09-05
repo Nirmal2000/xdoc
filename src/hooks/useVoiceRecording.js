@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 export function useVoiceRecording() {
   const [isRecording, setIsRecording] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [transcripts, setTranscripts] = useState({});
 
   // Voice recording refs
@@ -32,8 +33,9 @@ export function useVoiceRecording() {
   };
 
   const startRecording = async () => {
+    setIsStarting(true);
     const token = await getToken();
-    if (!token) return;
+    if (!token) { setIsStarting(false); return; }
 
     const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&formatted_finals=true&token=${token}`;
     socket.current = new WebSocket(wsUrl);
@@ -42,11 +44,12 @@ export function useVoiceRecording() {
 
     socket.current.onopen = async () => {
       console.log('WebSocket connection established');
-      setIsRecording(true);
 
       try {
         mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext.current = new AudioContext({ sampleRate: 16000 });
+        setIsRecording(true);
+        setIsStarting(false);
         toast.success('Recording started... Speak now!');
       } catch (error) {
         console.error('Error accessing microphone:', error);
@@ -92,17 +95,20 @@ export function useVoiceRecording() {
     socket.current.onerror = (err) => {
       console.error('WebSocket error:', err);
       toast.error('Connection to speech recognition service failed. Please try again.');
+      setIsStarting(false);
       stopRecording();
     };
 
     socket.current.onclose = () => {
       console.log('WebSocket closed');
+      setIsStarting(false);
       socket.current = null;
     };
   };
 
   const stopRecording = () => {
     setIsRecording(false);
+    setIsStarting(false);
     toast.info('Recording stopped');
 
     if (scriptProcessor.current) {
@@ -144,6 +150,7 @@ export function useVoiceRecording() {
 
   return {
     isRecording,
+    isStarting,
     transcripts,
     toggleRecording,
     getTranscriptText,

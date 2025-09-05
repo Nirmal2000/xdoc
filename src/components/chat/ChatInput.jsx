@@ -11,10 +11,11 @@ import { CircularLoader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import {
   ArrowUp,
-  Globe,
   Mic,
+  Users,
 } from "lucide-react";
 import { ModelSelector } from "@/components/ui/model-selector";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 /**
  * Component for handling prompt input, voice recording, and actions
@@ -24,9 +25,11 @@ export function ChatInput({
   onPromptChange,
   onSubmit,
   status,
-  isSearchEnabled,
-  onSearchToggle,
+  personas = [],
+  selectedPersona,
+  onPersonaChange,
   isRecording,
+  isVoiceStarting,
   onVoiceRecording,
   isSubmitDisabled,
   isInputDisabled,
@@ -70,13 +73,15 @@ export function ChatInput({
 
             <PromptInputActions className="mt-5 flex w-full items-center justify-between gap-2 px-3 pb-3">
               <InputLeftActions
-                isSearchEnabled={isSearchEnabled}
-                onSearchToggle={onSearchToggle}
+                personas={personas}
                 selectedModel={selectedModel}
                 onModelChange={onModelChange}
+                selectedPersona={selectedPersona}
+                onPersonaChange={onPersonaChange}
               />
               <InputRightActions
                 isRecording={isRecording}
+                isVoiceStarting={isVoiceStarting}
                 onVoiceRecording={onVoiceRecording}
                 onSubmit={onSubmit}
                 isSubmitDisabled={isSubmitDisabled}
@@ -90,36 +95,68 @@ export function ChatInput({
   );
 }
 
-function InputLeftActions({ isSearchEnabled, onSearchToggle, selectedModel, onModelChange }) {
+function InputLeftActions({ personas, selectedModel, onModelChange, selectedPersona, onPersonaChange }) {
+  const hasPersonas = Array.isArray(personas) && personas.length > 0;
   return (
     <div className="flex items-center gap-2">
-      <PromptInputAction tooltip="Select AI Model">
-        <ModelSelector
-          value={selectedModel}
-          onValueChange={onModelChange}
-        />
+      <PromptInputAction>
+        <div>
+          <ModelSelector
+            value={selectedModel}
+            onValueChange={onModelChange}
+          />
+        </div>
       </PromptInputAction>
 
-      <PromptInputAction tooltip="Search">
-        <Button 
-          type="button" 
-          variant="outline" 
-          className={cn(
-            "rounded-full",
-            isSearchEnabled && "bg-white text-black hover:bg-gray-200 hover:text-black"
-          )}
-          onClick={onSearchToggle}
-        >
-          <Globe size={18} />
-          Search
-        </Button>
-      </PromptInputAction>
+      {hasPersonas ? (
+        <PromptInputAction>
+          <div>
+            <Select
+              value={selectedPersona ? selectedPersona.name : undefined}
+              onValueChange={(val) => {
+                if (selectedPersona && selectedPersona.name === val) {
+                  onPersonaChange(null); // toggle off if same selected
+                } else {
+                  const p = personas.find((x) => x.name === val);
+                  onPersonaChange(p || null);
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 min-w-[140px] rounded-full">
+                <div className="flex items-center gap-2">
+                  <Users size={16} />
+                  <SelectValue placeholder="Personas" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {personas.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </PromptInputAction>
+      ) : (
+        <PromptInputAction tooltip="Create one by chatting!">
+          <div>
+            <Select value={undefined}>
+              <SelectTrigger className="h-9 min-w-[140px] rounded-full" disabled>
+                <div className="flex items-center gap-2">
+                  <Users size={16} />
+                  <SelectValue placeholder="Personas" />
+                </div>
+              </SelectTrigger>
+            </Select>
+          </div>
+        </PromptInputAction>
+      )}
     </div>
   );
 }
 
 function InputRightActions({ 
-  isRecording, 
+  isRecording,
+  isVoiceStarting,
   onVoiceRecording, 
   onSubmit, 
   isSubmitDisabled, 
@@ -137,8 +174,13 @@ function InputRightActions({
             isRecording && "bg-red-500 text-white hover:bg-red-600"
           )}
           onClick={onVoiceRecording}
+          disabled={isVoiceStarting}
         >
-          <Mic size={18} />
+          {isVoiceStarting ? (
+            <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          ) : (
+            <Mic size={18} />
+          )}
         </Button>
       </PromptInputAction>
 

@@ -11,6 +11,7 @@ import { renderChatSystemPrompt } from '@/lib/prompts';
 import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
+import { createPersonaTool } from '@/lib/create-persona-tool';
 import { createTextDeltaBatcherStream } from '@/lib/ui-message-batcher';
 import { publishStream, getRedis } from '@/lib/redis';
 import { createUIStreamDBPersister } from '@/lib/ui-stream-persister';
@@ -21,7 +22,7 @@ export async function POST(req, { params }) {
   console.log('[Route] POST /api/experience/:experienceId')
   const { experienceId } = await params;
   const body = await req.json();
-  const { user_id, conversation_id, search, userSessionId, model, messages: clientMessages } = body;
+  const { user_id, conversation_id, search, userSessionId, model, persona, messages: clientMessages } = body;
 
   // Note: Rate limiting is primarily handled on the client side using localStorage
   // This ensures immediate feedback and reduces server load
@@ -110,14 +111,15 @@ export async function POST(req, { params }) {
           const writeTweet = createTweetTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id } });
           const fetchTweets = createFetchTweetsTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id, userSessionId } });
           const liveSearch = createLiveSearchTool();
+          const createPersona = createPersonaTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id } });
 
-          const systemPrompt = await renderChatSystemPrompt({ date: new Date().toLocaleDateString() });
+          const systemPrompt = await renderChatSystemPrompt({ date: new Date().toLocaleDateString(), persona });
           const result = streamText({
             model: aiModel,
             messages: modelMessages,
             system: systemPrompt,
             stopWhen: stepCountIs(5),
-            tools: { writeTweet, fetchTweets, liveSearch },
+            tools: { writeTweet, fetchTweets, liveSearch, createPersona },
             toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',
             onFinish: async () => {},
           });

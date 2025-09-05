@@ -17,6 +17,7 @@ export default function ChatUI({ experienceId, userId }) {
   const [conversationTopic, setConversationTopic] = useState(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
+  const [personas, setPersonas] = useState([]);
   const eventSourceRef = useRef(null);
   const currentAssistantIdRef = useRef(null);
   const currentConversationIdRef = useRef(null);
@@ -46,6 +47,35 @@ export default function ChatUI({ experienceId, userId }) {
     const interval = setInterval(updateRateLimitInfo, 60000);
     
     return () => clearInterval(interval);
+  }, [userId]);
+
+  // Load personas for the user on mount and when userId changes
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!userId) { setPersonas([]); return; }
+      try {
+        const { data, error } = await supabase
+          .from('personas')
+          .select('name, persona_prompt')
+          .eq('userid', userId);
+        if (!cancelled) {
+          if (error) {
+            console.warn('[ChatUI personas] Failed to load personas:', error.message);
+            setPersonas([]);
+          } else {
+            setPersonas(data || []);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.warn('[ChatUI personas] Error loading personas:', e?.message || e);
+          setPersonas([]);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [userId]);
   
   // Debug: Track conversation ID changes
@@ -428,6 +458,7 @@ export default function ChatUI({ experienceId, userId }) {
         experienceId,
         search: options.search || false,
         model: options.model || 'xai/grok-4',
+        persona: options.persona ? '[provided]' : null,
         userSessionId: !!userSessionId,
         timestamp: new Date().toISOString()
       });
@@ -460,6 +491,7 @@ export default function ChatUI({ experienceId, userId }) {
             search: options.search || false,
             model: options.model || 'xai/grok-4',
             userSessionId: userSessionId,
+            persona: options.persona || null,
             messages: last20,
           }),
         });
@@ -504,6 +536,7 @@ export default function ChatUI({ experienceId, userId }) {
           isLoadingConversation={isLoadingConversation}
           rateLimitInfo={rateLimitInfo}
           userId={userId}
+          personas={personas}
         />
       </SidebarInset>
     </SidebarProvider>

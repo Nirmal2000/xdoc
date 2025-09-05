@@ -44,7 +44,7 @@ export function useMessageActions() {
  */
 export function useVoiceInput(voiceRecording) {
   const [originalPrompt, setOriginalPrompt] = useState('');
-  const { isRecording, transcripts, toggleRecording, getTranscriptText } = voiceRecording;
+  const { isRecording, isStarting, transcripts, toggleRecording, getTranscriptText } = voiceRecording;
 
   const handleVoiceRecording = (currentPrompt, setPrompt) => {
     if (isRecording) {
@@ -72,6 +72,7 @@ export function useVoiceInput(voiceRecording) {
 
   return {
     isRecording,
+    isStarting,
     originalPrompt,
     handleVoiceRecording,
     getUpdatedPrompt: () => {
@@ -90,9 +91,9 @@ export function useVoiceInput(voiceRecording) {
 /**
  * Hook for managing chat input state and submission
  */
-export function useChatInput(onSubmit, currentConversationId, userId) {
+export function useChatInput(onSubmit, currentConversationId, userId, personas = []) {
   const [prompt, setPrompt] = useState('');
-  const [isSearchEnabled, setIsSearchEnabled] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState(null);
   const [selectedModel, setSelectedModel] = useState('xai/grok-4');
 
   const handleSubmit = () => {
@@ -111,13 +112,13 @@ export function useChatInput(onSubmit, currentConversationId, userId) {
         }
       }
       
-      onSubmit(prompt.trim(), { search: isSearchEnabled, model: selectedModel });
+      onSubmit(prompt.trim(), { 
+        search: false,
+        model: selectedModel,
+        persona: selectedPersona?.persona_prompt || null
+      });
       setPrompt('');
     }
-  };
-
-  const handleSearchToggle = () => {
-    setIsSearchEnabled(prev => !prev);
   };
 
   const isSubmitDisabled = (status) => {
@@ -149,11 +150,11 @@ export function useChatInput(onSubmit, currentConversationId, userId) {
   return {
     prompt,
     setPrompt,
-    isSearchEnabled,
+    selectedPersona,
+    setSelectedPersona,
     selectedModel,
     setSelectedModel,
     handleSubmit,
-    handleSearchToggle,
     isSubmitDisabled,
     isInputDisabled,
     getPlaceholder
