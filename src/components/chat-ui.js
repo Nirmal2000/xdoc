@@ -445,7 +445,11 @@ export default function ChatUI({ experienceId, userId }) {
       // Indicate submission immediately so UI shows loader/disabled state
       setStatus('submitted');
 
-      // Trigger background generation (fire-and-forget), sending current UI messages for context
+      // Prepare last 20 messages for context (keep UI state as full history)
+      const messagesForContext = [...messages, userMessage];
+      const last20 = messagesForContext.slice(-20);
+
+      // Trigger background generation (fire-and-forget), sending last 20 messages for context
       try {
         const resp = await fetch(`/api/experiences/${experienceId}/chat`, {
           method: 'POST',
@@ -456,7 +460,7 @@ export default function ChatUI({ experienceId, userId }) {
             search: options.search || false,
             model: options.model || 'xai/grok-4',
             userSessionId: userSessionId,
-            messages: [...messages, userMessage],
+            messages: last20,
           }),
         });
         if (!resp.ok) {
