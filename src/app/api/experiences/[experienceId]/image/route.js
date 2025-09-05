@@ -29,9 +29,15 @@ export async function POST(req, { params }) {
       content,
     };
 
+    const systemMessage = {
+      role: 'system',
+      content:
+        'You are an image generation assistant. Create exactly one image and nothing else. Given the tweet content and optional instructions, produce a single visual that reflects the tweet. Do not include any extra text or multiple images in your response—only one image.'
+    };
+
     const result = await generateText({
       model: 'google/gemini-2.5-flash-image-preview',
-      messages: [userMessage],
+      messages: [systemMessage, userMessage],
     });
 
     const files = Array.isArray(result?.files) ? result.files : [];

@@ -142,6 +142,8 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
     tweetData.text &&
     (tweetData.status === "streaming" || tweetData.status === "complete")
   ) {
+    // Animate only while tool reports streaming for the last message.
+    // Component will finish-to-target locally when status flips to complete.
     const isStreaming = tweetData.status === "streaming" && isLastMessage;
 
     const experienceId =
@@ -195,7 +197,6 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
               showPostButton={false}
               isEditing={isEditing}
               onTextChange={onTextChange}
-              media={media}
               account={{
                 name: userInfo?.name || "Your Name",
                 username: userInfo?.username || "your_username",
@@ -236,8 +237,21 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
                   <StreamingMessage
                     text={tweetData.text.trim()}
                     animate={isStreaming}
-                    speed={110}
+                    speed={50}
                   />
+                  {/* Generated images inline with text */}
+                  {media && media.length > 0 && (
+                    <div className="space-y-2">
+                      {media.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt=""
+                          className="rounded-lg max-w-full h-auto max-h-[400px] object-contain"
+                        />
+                      ))}
+                    </div>
+                  )}
                   {/* separator matching text span */}
                   <div className="h-px bg-zinc-300 dark:bg-zinc-700 w-full max-w-full" />
                   <TweetToolbox
@@ -306,7 +320,7 @@ function renderMultipleTweetsOutput(fetchData, userInfo, key) {
     return (
       <div key={key} className="mb-4">
         {/* Display individual tweet mockups as side-scrollable */}
-        <div className="overflow-x-auto pb-2">
+        <div className="overflow-x-auto pb-2 scrollbar-hide">
           <div className="flex gap-4 min-w-max">
             {tweets.map((tweet, tweetIndex) => {
               return (
