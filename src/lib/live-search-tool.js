@@ -31,25 +31,9 @@ export function createLiveSearchTool() {
 
         // Perform search using grok-3-mini with provider options for sources
         const { text, sources } = await generateText({
-          model: 'xai/grok-3-mini',
+          model: 'perplexity/sonar',
           system: searchPrompt,
-          prompt: query.trim(),
-          providerOptions: {
-            xai: {
-              searchParameters: {
-                mode: 'on',
-                returnCitations: true,
-                sources: [
-                  {
-                    type: 'web',
-                  },
-                  {
-                    type: 'news',
-                  },
-                ],
-              },
-            },
-          },
+          prompt: query.trim()          
         });
 
         // Debug logging

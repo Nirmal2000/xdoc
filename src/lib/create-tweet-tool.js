@@ -76,7 +76,7 @@ export function createTweetTool({ writer, ctx }) {
 
         // Stream the tweet generation using XAI
         const result = streamText({
-          model: 'xai/grok-3-mini',
+          model: 'xai/grok-4',
           system: systemPrompt,
           messages: [
             {
