@@ -1,4 +1,5 @@
 import { generateText } from 'ai';
+import { getPrompt } from '@/lib/prompts';
 
 export const maxDuration = 30;
 
@@ -20,8 +21,7 @@ export async function POST(req, { params }) {
 
     const systemMessage = {
       role: 'system',
-      content:
-        'You write tweets. Output only a single tweet and nothing else. Keep it under 300 characters. The user will provide an unsatisfying tweet—rewrite it to be better. If additional instructions are provided, incorporate them. Do not add commentary, labels, quotes, or formatting; output the tweet text only.'
+      content: await getPrompt('generateTextSystem'),
     };
 
     const result = await generateText({
