@@ -104,8 +104,8 @@ export default function PromptsAdminPage() {
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-2">Prompts Admin</h1>
-      <p>After temp save, must save manually to "./src/lib/prompts.js"</p>
-      <p className="text-sm text-gray-500 mb-6">Edit prompts/templates live. Stored in Redis under hash "prompts".</p>
+      <p>After temp save, must save manually to &quot;./src/lib/prompts.js&quot;</p>
+      <p className="text-sm text-gray-500 mb-6">Edit prompts/templates live. Stored in Redis under hash &quot;prompts&quot;.</p>
       {message && (
         <div className="mb-4 text-sm px-3 py-2 rounded bg-blue-50 text-blue-800">{message}</div>
       )}
