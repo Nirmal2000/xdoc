@@ -5,6 +5,9 @@
 CREATE SCHEMA IF NOT EXISTS xdoc;
 SET search_path TO xdoc, public;
 
+-- Ensure UUID generation function is available
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Grant permissions on schema
 GRANT USAGE ON SCHEMA xdoc TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA xdoc TO anon, authenticated, service_role;
@@ -104,13 +107,40 @@ CREATE TRIGGER update_conversations_updated_at
 
 -- Personas table
 CREATE TABLE IF NOT EXISTS xdoc.personas (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     userid TEXT NOT NULL REFERENCES xdoc.users(user_id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    persona_prompt TEXT NOT NULL
+    persona_prompt TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes for personas
 CREATE INDEX IF NOT EXISTS idx_personas_userid ON xdoc.personas(userid);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_personas_userid_name ON xdoc.personas(userid, name);
+
+-- Migration for existing databases where personas lacked a primary key
+DO $$
+BEGIN
+  -- Only run if the table exists (older deployments)
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'xdoc' AND table_name = 'personas'
+  ) THEN
+    -- Add id column if it doesn't exist
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_schema = 'xdoc' AND table_name = 'personas' AND column_name = 'id'
+    ) THEN
+      ALTER TABLE xdoc.personas ADD COLUMN id UUID;
+      UPDATE xdoc.personas SET id = gen_random_uuid() WHERE id IS NULL;
+      -- Ensure future inserts get a generated UUID
+      ALTER TABLE xdoc.personas ALTER COLUMN id SET DEFAULT gen_random_uuid();
+      ALTER TABLE xdoc.personas ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE xdoc.personas ADD PRIMARY KEY (id);
+    END IF;
+  END IF;
+END$$;
 
 -- Enable RLS for personas
 ALTER TABLE xdoc.personas ENABLE ROW LEVEL SECURITY;
@@ -124,3 +154,8 @@ CREATE POLICY "user_own_personas" ON xdoc.personas
         auth.role() = 'authenticated' AND
         userid = auth.jwt() ->> 'sub'
     );
+
+-- Trigger to automatically update updated_at on personas
+CREATE TRIGGER update_personas_updated_at
+    BEFORE UPDATE ON xdoc.personas
+    FOR EACH ROW EXECUTE FUNCTION xdoc.update_updated_at_column();

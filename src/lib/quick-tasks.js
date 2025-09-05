@@ -44,12 +44,11 @@ Overall Score: X.X (Interpretation: e.g., Elite/Solid/Underperforming).
 Improvement Suggestions: Bullet list of 5-10 actionable tips, prioritized by impact.
 
 Your immediately next response would be "Shall I evaluate your X account or a different one?"`,
-  "Help me create a compelling X/Twitter persona. Based on my interests, goals, and target audience, develop a unique personality with consistent voice, tone, and communication style. Include bio suggestions, content themes, posting schedule, and engagement strategies that will make my profile stand out and attract the right followers.",
-  "Create a viral-worthy X/Twitter post for me. Analyze current trending topics, viral content patterns, and engagement strategies. Generate 3-5 different post variations with compelling hooks, emotional triggers, timing suggestions, and hashtag strategies. Include psychological triggers and formatting tips to maximize engagement and shares.",
+  "Help me create a compelling X/Twitter persona. First, ask me who this persona should be based on (a person, brand, or account — name/profile/link). After I answer, develop a unique personality with consistent voice, tone, and communication style. Include bio suggestions, content themes, posting schedule, and engagement strategies that will make my profile stand out and attract the right followers. Your immediately next response should be: 'Who should this persona be based on (name/profile/link)?'",
+  "Create a viral-worthy X/Twitter post for me. First, ask me what topic or angle the post should be based on. After I answer, analyze current trending topics, viral content patterns, and engagement strategies. Generate 3-5 different post variations with compelling hooks, emotional triggers, timing suggestions, and hashtag strategies. Include psychological triggers and formatting tips to maximize engagement and shares. Your immediately next response should be: 'What topic should the post be about?'",
 ].map((s) => s.trim());
 
 export function isQuickTaskPrompt(text) {
   const t = String(text || '').trim();
   return QUICK_TASK_PROMPTS.includes(t);
 }
-

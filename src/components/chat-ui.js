@@ -26,6 +26,7 @@ export default function ChatUI({ experienceId, userId }) {
   const basePartsRef = useRef({});
   const lastAssistantIdRef = useRef(null);
   const firstEventLoggedRef = useRef(false);
+  const refreshedToolIdsRef = useRef(new Set());
 
   // Keep a ref in sync with the current conversation ID for async guards
   useEffect(() => {
@@ -155,9 +156,15 @@ export default function ChatUI({ experienceId, userId }) {
             return next;
           });
         }
-        // When createPersona tool finishes, refresh personas from DB
-        if (data.type === 'tool-output-available' && data.toolName === 'createPersona') {
-          try { refreshPersonas(); } catch {}
+        // When any tool completes, correlate by toolCallId to detect createPersona and refresh personas once
+        if (data.type === 'tool-output-available' && data.toolCallId && snap && Array.isArray(snap.parts)) {
+          const toolPart = snap.parts.find((p) => p && p.toolCallId === data.toolCallId);
+          const isCreatePersona = toolPart && typeof toolPart.type === 'string' && toolPart.type === 'tool-createPersona';
+          const succeeded = data?.output?.success === true;
+          if (isCreatePersona && succeeded && !refreshedToolIdsRef.current.has(data.toolCallId)) {
+            refreshedToolIdsRef.current.add(data.toolCallId);
+            try { refreshPersonas(); } catch {}
+          }
         }
         if (data.type === 'finish' || data.type === 'abort') setStatus('ready');
         else if (data.type !== 'connected' && data.type !== 'ping') setStatus('streaming');

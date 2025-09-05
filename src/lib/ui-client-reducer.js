@@ -6,6 +6,7 @@ export function createUIClientReducer({ getBaseParts } = {}) {
   let parts = [];
   const textBuffers = new Map();
   const reasoningBuffers = new Map();
+  const toolNamesById = new Map(); // toolCallId -> toolName
 
   const findPartIndexBy = (predicate) => parts.findIndex(predicate);
 
@@ -15,6 +16,8 @@ export function createUIClientReducer({ getBaseParts } = {}) {
       messageId = id;
       const base = (typeof getBaseParts === 'function' ? getBaseParts(id) : null) || [];
       parts = Array.isArray(base) ? base.map((p) => ({ ...p })) : [];
+      // New assistant message scope: reset tool id mapping
+      try { toolNamesById.clear(); } catch {}
     }
   };
 
@@ -33,11 +36,19 @@ export function createUIClientReducer({ getBaseParts } = {}) {
       const name = safePatch.input.name || 'persona';
       safePatch.input = { name };
     }
+    // Resolve tool name by id if not provided
+    const mappedName = toolNamesById.get(toolCallId);
+    const resolvedName = toolName || mappedName || null;
     if (existingIdx === -1) {
-      const type = toolName ? `tool-${toolName}` : 'tool';
+      const type = resolvedName ? `tool-${resolvedName}` : 'tool';
       parts.push({ type, toolCallId, state: defaultState, ...safePatch });
     } else {
-      parts[existingIdx] = { ...parts[existingIdx], ...safePatch, toolCallId };
+      const existing = parts[existingIdx] || {};
+      let nextType = existing.type;
+      if ((!nextType || nextType === 'tool') && resolvedName) {
+        nextType = `tool-${resolvedName}`;
+      }
+      parts[existingIdx] = { ...existing, ...safePatch, toolCallId, type: nextType };
     }
   };
 
@@ -129,17 +140,25 @@ export function createUIClientReducer({ getBaseParts } = {}) {
         }
         case 'tool-input-available': {
           ensureBaseParts(messageId || ev.messageId);
+          // Record tool name by id for later correlation
+          if (ev.toolCallId && ev.toolName) {
+            try { toolNamesById.set(ev.toolCallId, ev.toolName); } catch {}
+          }
           upsertToolPart({ toolName: ev.toolName, toolCallId: ev.toolCallId, patch: { input: ev.input, state: 'input-available' } });
           return snapshot();
         }
         case 'tool-output-available': {
           ensureBaseParts(messageId || ev.messageId);
-          upsertToolPart({ toolName: ev.toolName, toolCallId: ev.toolCallId, patch: { output: ev.output, state: 'output-available' } });
+          // Correlate by id even if toolName is missing on output
+          const name = ev.toolName || (ev.toolCallId ? toolNamesById.get(ev.toolCallId) : undefined);
+          upsertToolPart({ toolName: name, toolCallId: ev.toolCallId, patch: { output: ev.output, state: 'output-available' } });
           return snapshot();
         }
         case 'tool-output-error': {
           ensureBaseParts(messageId || ev.messageId);
-          upsertToolPart({ toolName: ev.toolName, toolCallId: ev.toolCallId, patch: { errorText: String(ev.error || 'Tool error'), state: 'output-error' } });
+          // Correlate by id even if toolName is missing on error
+          const name = ev.toolName || (ev.toolCallId ? toolNamesById.get(ev.toolCallId) : undefined);
+          upsertToolPart({ toolName: name, toolCallId: ev.toolCallId, patch: { errorText: String(ev.error || 'Tool error'), state: 'output-error' } });
           return snapshot();
         }
         default: {

@@ -23,17 +23,15 @@ export function createPersonaTool({ writer, ctx }) {
         return { success: false, error: 'Both name and persona_prompt are required' };
       }
 
-      try {        
+      try {
+        // Upsert so saving the same name updates the existing persona
         const { error } = await supabase
           .from('personas')
-          .insert({ userid: ctx.userId, name: cleanName, persona_prompt: cleanPrompt });
+          .upsert([
+            { userid: ctx.userId, name: cleanName, persona_prompt: cleanPrompt }
+          ], { onConflict: 'userid,name' });
 
-        if (error) {
-          writer?.write?.({
-            type: 'data-tool-output',
-            id,
-            data: { status: 'error', text: `Failed to create persona: ${error.message}` },
-          });
+        if (error) {          
           return { success: false, error: error.message };
         }
 
@@ -44,4 +42,3 @@ export function createPersonaTool({ writer, ctx }) {
     },
   });
 }
-
