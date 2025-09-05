@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { generateText } from 'ai';
+import { getPrompt } from '@/lib/prompts';
 
 export const maxDuration = 30;
 
@@ -31,8 +32,7 @@ export async function POST(req, { params }) {
 
     const systemMessage = {
       role: 'system',
-      content:
-        'You are an image generation assistant. Create exactly one image and nothing else. Given the tweet content and optional instructions, produce a single visual that reflects the tweet. Do not include any extra text or multiple images in your response—only one image.'
+      content: await getPrompt('imageSystem'),
     };
 
     const result = await generateText({

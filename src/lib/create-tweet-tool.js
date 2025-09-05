@@ -5,6 +5,7 @@ import {
   tool,
 } from 'ai';
 import { z } from 'zod';
+import { renderTweetSystemPrompt } from '@/lib/prompts';
 
 // Create the tweet tool that handles streaming content generation
 export function createTweetTool({ writer, ctx }) {
@@ -63,23 +64,10 @@ export function createTweetTool({ writer, ctx }) {
         },
       });
 
-      // Create system prompt for tweet generation
-      const systemPrompt = `You are a skilled social media content creator specializing in X/Twitter. Your task is to create engaging, viral-worthy content.
+      // Render system prompt from centralized template
+      const systemPrompt = await renderTweetSystemPrompt({ date: new Date().toLocaleDateString() });
 
-${finalInstructions}
-
-Rules:
-- Keep each tweet under 280 characters
-- Use engaging hooks and emotional triggers
-- Include relevant hashtags naturally
-- Focus on maximum engagement potential
-- Use line breaks for readability
-- Avoid controversial or offensive content
-- Create a single tweet (not a thread)
-
-Current date: ${new Date().toLocaleDateString()}`;
-
-      const userMessage = `Create a single tweet about: ${topic}`;
+      const userMessage = `Create a single tweet about: ${topic}\n\nInstructions: ${finalInstructions}`;
 
       try {
         // Debug logging

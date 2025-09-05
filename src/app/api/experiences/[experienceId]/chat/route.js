@@ -7,8 +7,7 @@ import {
 // import {xai} from "@ai-sdk/xai"
 import { after } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { renderChatSystemPrompt } from '@/lib/prompts';
 import { createTweetTool } from '@/lib/create-tweet-tool';
 import { createFetchTweetsTool } from '@/lib/fetch-tweets-tool';
 import { createLiveSearchTool } from '@/lib/live-search-tool';
@@ -105,17 +104,18 @@ export async function POST(req, { params }) {
       const modelMessages = convertToModelMessages(normalized);
 
       const stream = createUIMessageStream({
-        execute: ({ writer }) => {
+        execute: async ({ writer }) => {
           writer.write({ type: 'data-notification', data: { message: 'Generating response...', level: 'info' }, transient: true });
 
           const writeTweet = createTweetTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id } });
           const fetchTweets = createFetchTweetsTool({ writer, ctx: { experienceId, userId: user_id, conversationId: conversation_id, userSessionId } });
           const liveSearch = createLiveSearchTool();
 
+          const systemPrompt = await renderChatSystemPrompt({ date: new Date().toLocaleDateString() });
           const result = streamText({
             model: aiModel,
             messages: modelMessages,
-            system: readFileSync(join(process.cwd(), 'public', 'systemprompt.txt'), 'utf-8'),
+            system: systemPrompt,
             stopWhen: stepCountIs(5),
             tools: { writeTweet, fetchTweets, liveSearch },
             toolChoice: search ? { type: 'tool', toolName: 'liveSearch' } : 'auto',

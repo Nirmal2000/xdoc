@@ -1,5 +1,6 @@
 import { generateText, generateId, tool } from 'ai';
 import { z } from 'zod';
+import { renderLiveSearchSystemPrompt } from '@/lib/prompts';
 
 // Create the live search tool that performs web/news search using grok-3-mini
 export function createLiveSearchTool() {
@@ -26,10 +27,7 @@ export function createLiveSearchTool() {
       console.log('[LiveSearch Tool] Using query:', query.trim());
 
       try {        
-        const searchPrompt = `
-You are performing a search for the following query: "${query.trim()}"
-
-Please provide comprehensive, accurate, and up-to-date information based on real-time search results. Focus on current facts, recent developments, and reliable sources. Structure your response in a clear, readable format.`;
+        const searchPrompt = await renderLiveSearchSystemPrompt({ date: new Date().toLocaleDateString() });
 
         // Perform search using grok-3-mini with provider options for sources
         const { text, sources } = await generateText({
