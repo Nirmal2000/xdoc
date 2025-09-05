@@ -67,9 +67,7 @@ export function MessageRenderer({
           >
             <StreamingText
               text={part.text}
-              animate={
-                isLastMessage && status === "streaming" && part.state !== "done"
-              }
+              animate={isLastMessage && status === "streaming"}
               speed={110}
               markdown
             />

@@ -142,6 +142,8 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
     tweetData.text &&
     (tweetData.status === "streaming" || tweetData.status === "complete")
   ) {
+    // Animate only while tool reports streaming for the last message.
+    // Component will finish-to-target locally when status flips to complete.
     const isStreaming = tweetData.status === "streaming" && isLastMessage;
 
     const experienceId =
@@ -235,7 +237,7 @@ function renderSingleTweetOutput(tweetData, userInfo, isLastMessage, key) {
                   <StreamingMessage
                     text={tweetData.text.trim()}
                     animate={isStreaming}
-                    speed={110}
+                    speed={50}
                   />
                   {/* Generated images inline with text */}
                   {media && media.length > 0 && (

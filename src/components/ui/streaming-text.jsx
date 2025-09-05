@@ -76,11 +76,14 @@ export const StreamingText = memo(function StreamingText({
       indexRef.current = targetRef.current.length;
     }
 
-    // If animation is disabled, snap to full text and stop.
+    // If animation is disabled, only snap if not mid-typing.
+    // If currently animating and not caught up, continue to finish to target (no jump).
     if (!animate) {
-      setDisplayed(targetRef.current);
-      indexRef.current = targetRef.current.length;
-      stopAnimation();
+      if (!animatingRef.current || indexRef.current >= targetRef.current.length) {
+        setDisplayed(targetRef.current);
+        indexRef.current = targetRef.current.length;
+        stopAnimation();
+      }
       return;
     }
 
