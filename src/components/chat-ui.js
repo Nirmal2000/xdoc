@@ -18,6 +18,7 @@ export default function ChatUI({ experienceId, userId }) {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [rateLimitInfo, setRateLimitInfo] = useState(null);
   const [personas, setPersonas] = useState([]);
+  const [isRefreshingPersonas, setIsRefreshingPersonas] = useState(false);
   const eventSourceRef = useRef(null);
   const currentAssistantIdRef = useRef(null);
   const currentConversationIdRef = useRef(null);
@@ -49,32 +50,33 @@ export default function ChatUI({ experienceId, userId }) {
     return () => clearInterval(interval);
   }, [userId]);
 
-  // Load personas for the user on mount and when userId changes
+  // Helper to refresh personas from DB
+  const refreshPersonas = async () => {
+    if (!userId) { setPersonas([]); return; }
+    setIsRefreshingPersonas(true);
+    try {
+      const { data, error } = await supabase
+        .from('personas')
+        .select('name, persona_prompt')
+        .eq('userid', userId);
+      if (error) {
+        console.warn('[ChatUI personas] Failed to load personas:', error.message);
+        setPersonas([]);
+      } else {
+        setPersonas(data || []);
+      }
+    } catch (e) {
+      console.warn('[ChatUI personas] Error loading personas:', e?.message || e);
+      setPersonas([]);
+    } finally {
+      setIsRefreshingPersonas(false);
+    }
+  };
+
+  // Load personas on mount and when userId changes
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      if (!userId) { setPersonas([]); return; }
-      try {
-        const { data, error } = await supabase
-          .from('personas')
-          .select('name, persona_prompt')
-          .eq('userid', userId);
-        if (!cancelled) {
-          if (error) {
-            console.warn('[ChatUI personas] Failed to load personas:', error.message);
-            setPersonas([]);
-          } else {
-            setPersonas(data || []);
-          }
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.warn('[ChatUI personas] Error loading personas:', e?.message || e);
-          setPersonas([]);
-        }
-      }
-    };
-    load();
+    (async () => { if (!cancelled) await refreshPersonas(); })();
     return () => { cancelled = true; };
   }, [userId]);
   
@@ -152,6 +154,10 @@ export default function ChatUI({ experienceId, userId }) {
             next[idx] = snap;
             return next;
           });
+        }
+        // When createPersona tool finishes, refresh personas from DB
+        if (data.type === 'tool-output-available' && data.toolName === 'createPersona') {
+          try { refreshPersonas(); } catch {}
         }
         if (data.type === 'finish' || data.type === 'abort') setStatus('ready');
         else if (data.type !== 'connected' && data.type !== 'ping') setStatus('streaming');
@@ -303,16 +309,29 @@ export default function ChatUI({ experienceId, userId }) {
       } else {
         const data = await response.json();
         const loaded = data.messages || [];
-        setMessages(loaded);
+        // Sanitize tool inputs for DB-loaded messages (e.g., hide persona prompts)
+        const sanitizeParts = (parts) => {
+          if (!Array.isArray(parts)) return parts;
+          return parts.map((p) => {
+            if (p && p.type === 'tool-createPersona') {
+              console.log("GOMMS", p)
+              const name = (p.input && p.input.name) || (p.output && p.output.name) || 'persona';
+              return { ...p, input: { name } };
+            }
+            return p;
+          });
+        };
+        const sanitized = loaded.map((m) => (m && Array.isArray(m.parts) ? { ...m, parts: sanitizeParts(m.parts) } : m));
+        setMessages(sanitized);
         // Prepare base parts map and resume cursor from DB-loaded messages
         try {
           basePartsRef.current = {};
-          for (const m of loaded) {
+          for (const m of sanitized) {
             if (m && m.role === 'assistant' && Array.isArray(m.parts)) {
               basePartsRef.current[m.id] = m.parts;
             }
           }
-          const lastAssistant = [...loaded].reverse().find((m) => m?.role === 'assistant' && Array.isArray(m.parts) && m.parts.length > 0);
+          const lastAssistant = [...sanitized].reverse().find((m) => m?.role === 'assistant' && Array.isArray(m.parts) && m.parts.length > 0);
           if (lastAssistant) {
             const rev = [...lastAssistant.parts].reverse();
             const lastWithId = rev.find((p) => (p && (p.id || p.toolCallId)) && (p.state === 'done' || p.state === 'output-available' || p.state === 'output-error' || p.state === undefined));
@@ -537,6 +556,7 @@ export default function ChatUI({ experienceId, userId }) {
           rateLimitInfo={rateLimitInfo}
           userId={userId}
           personas={personas}
+          isRefreshingPersonas={isRefreshingPersonas}
         />
       </SidebarInset>
     </SidebarProvider>

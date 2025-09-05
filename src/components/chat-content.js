@@ -13,7 +13,7 @@ import { ChatHeader, MessageRenderer, ChatInput } from "@/components/chat"
 import { useMessageActions, useVoiceInput, useChatInput } from "@/hooks/useChatInteractions"
 import { BarsLoader } from "@/components/ui/loader"
 
-export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation, rateLimitInfo, userId, personas }) {
+export default function ChatContent({ messages, status, onSubmit, onStop, currentConversationId, experienceId, conversationTopic, isLoadingConversation, rateLimitInfo, userId, personas, isRefreshingPersonas }) {
   // Authentication and user info
   const { user: userInfo, checked: authChecked, login, logout, loading } = useSimpleX();
   
@@ -89,6 +89,7 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
         onSubmit={chatInput.handleSubmit}
         status={status}
         personas={personas}
+        isRefreshingPersonas={isRefreshingPersonas}
         selectedPersona={chatInput.selectedPersona}
         onPersonaChange={chatInput.setSelectedPersona}
         isRecording={voiceInput.isRecording}

@@ -26,11 +26,18 @@ export function createUIClientReducer({ getBaseParts } = {}) {
     if (!toolCallId) return;
     // Prefer existing part by toolCallId, otherwise infer type from toolName
     const existingIdx = findPartIndexBy((p) => p && p.toolCallId === toolCallId);
+    // Sanitize inputs for specific tools
+    let safePatch = { ...(patch || {}) };
+    if (toolName === 'createPersona' && safePatch.input && typeof safePatch.input === 'object') {
+      // Never expose persona_prompt in UI stream; keep only name
+      const name = safePatch.input.name || 'persona';
+      safePatch.input = { name };
+    }
     if (existingIdx === -1) {
       const type = toolName ? `tool-${toolName}` : 'tool';
-      parts.push({ type, toolCallId, state: defaultState, ...(patch || {}) });
+      parts.push({ type, toolCallId, state: defaultState, ...safePatch });
     } else {
-      parts[existingIdx] = { ...parts[existingIdx], ...(patch || {}), toolCallId };
+      parts[existingIdx] = { ...parts[existingIdx], ...safePatch, toolCallId };
     }
   };
 

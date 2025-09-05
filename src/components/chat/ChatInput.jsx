@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from 'react';
+
 import {
   PromptInput,
   PromptInputAction,
@@ -26,6 +28,7 @@ export function ChatInput({
   onSubmit,
   status,
   personas = [],
+  isRefreshingPersonas = false,
   selectedPersona,
   onPersonaChange,
   isRecording,
@@ -78,6 +81,7 @@ export function ChatInput({
                 onModelChange={onModelChange}
                 selectedPersona={selectedPersona}
                 onPersonaChange={onPersonaChange}
+                isRefreshingPersonas={isRefreshingPersonas}
               />
               <InputRightActions
                 isRecording={isRecording}
@@ -95,7 +99,9 @@ export function ChatInput({
   );
 }
 
-function InputLeftActions({ personas, selectedModel, onModelChange, selectedPersona, onPersonaChange }) {
+function InputLeftActions({ personas, selectedModel, onModelChange, selectedPersona, onPersonaChange, isRefreshingPersonas }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const hasPersonas = Array.isArray(personas) && personas.length > 0;
   return (
     <div className="flex items-center gap-2">
@@ -108,47 +114,58 @@ function InputLeftActions({ personas, selectedModel, onModelChange, selectedPers
         </div>
       </PromptInputAction>
 
-      {hasPersonas ? (
-        <PromptInputAction>
-          <div>
-            <Select
-              value={selectedPersona ? selectedPersona.name : undefined}
-              onValueChange={(val) => {
-                if (selectedPersona && selectedPersona.name === val) {
-                  onPersonaChange(null); // toggle off if same selected
-                } else {
+      {mounted ? (
+        hasPersonas ? (
+          <PromptInputAction>
+            <div>
+              <Select
+                value={selectedPersona ? selectedPersona.name : undefined}
+                onValueChange={(val) => {
+                  if (val === '__none__') {
+                    onPersonaChange(null);
+                    return;
+                  }
                   const p = personas.find((x) => x.name === val);
                   onPersonaChange(p || null);
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 min-w-[140px] rounded-full">
-                <div className="flex items-center gap-2">
-                  <Users size={16} />
-                  <SelectValue placeholder="Personas" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {personas.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </PromptInputAction>
+                }}
+              >
+                <SelectTrigger className="h-9 min-w-[140px] rounded-full">
+                  <div className="flex items-center gap-2">
+                    <Users size={16} />
+                    <SelectValue placeholder="Personas" />
+                    {isRefreshingPersonas ? (
+                      <CircularLoader size="sm" className="ml-1" />
+                    ) : null}
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {personas.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </PromptInputAction>
+        ) : (
+          <PromptInputAction tooltip="Create one by chatting!">
+            <div>
+              <Select value={undefined}>
+                <SelectTrigger className="h-9 min-w-[140px] rounded-full" disabled>
+                  <div className="flex items-center gap-2">
+                    <Users size={16} />
+                    <SelectValue placeholder="Personas" />
+                  </div>
+                </SelectTrigger>
+              </Select>
+            </div>
+          </PromptInputAction>
+        )
       ) : (
-        <PromptInputAction tooltip="Create one by chatting!">
-          <div>
-            <Select value={undefined}>
-              <SelectTrigger className="h-9 min-w-[140px] rounded-full" disabled>
-                <div className="flex items-center gap-2">
-                  <Users size={16} />
-                  <SelectValue placeholder="Personas" />
-                </div>
-              </SelectTrigger>
-            </Select>
-          </div>
-        </PromptInputAction>
+        <div className="h-9 min-w-[140px] rounded-full border border-input bg-transparent px-3 py-2 text-sm opacity-50 flex items-center gap-2">
+          <Users size={16} />
+          <span className="text-muted-foreground">Personas</span>
+        </div>
       )}
     </div>
   );

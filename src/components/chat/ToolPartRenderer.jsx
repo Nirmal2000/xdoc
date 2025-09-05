@@ -18,6 +18,11 @@ export function ToolPartRenderer({ part, keyPrefix }) {
     return renderFetchTweetsTool(part, key);
   }
 
+  // Handle create persona tool parts (mask input)
+  if (part.type === 'tool-createPersona') {
+    return renderCreatePersonaTool(part, key);
+  }
+
   // Explicitly ignore writeTweet tool parts; handled via data-tool-output events
   if (part.type === 'tool-writeTweet') {
     return null;
@@ -105,3 +110,48 @@ function renderFetchTweetsTool(part, key) {
 }
 
 // No renderer for writeTweet; TweetPartsRenderer handles data-tool-output
+
+function renderCreatePersonaTool(part, key) {
+  const toolState = part.state || 'input-streaming';
+  const toolInput = part.input || {};
+  const toolOutput = part.output;
+
+  let displayState = 'input-streaming';
+  let outputContent = undefined;
+  let errorText = undefined;
+
+  if (toolState === 'output-available' && toolOutput) {
+    if (toolOutput.success) {
+      displayState = 'output-available';
+      const who = toolOutput.name || toolInput.name || 'persona';
+      outputContent = `Persona created for ${who}`;
+    } else {
+      displayState = 'output-error';
+      errorText = toolOutput.error || 'Failed to create persona';
+    }
+  } else if (toolState === 'output-error') {
+    displayState = 'output-error';
+    errorText = part.errorText || 'Failed to create persona';
+  } else {
+    displayState = 'input-streaming';
+  }
+
+  const name = toolInput.name || toolOutput?.name || 'persona';
+  const maskedInput = { message: `Creating persona for ${name}` };
+
+  return (
+    <div key={key} className="mb-4">
+      <Tool
+        className="w-full"
+        toolPart={{
+          type: 'createPersona',
+          state: displayState,
+          input: maskedInput,
+          output: outputContent,
+          errorText: errorText,
+          toolCallId: part.toolCallId,
+        }}
+      />
+    </div>
+  );
+}

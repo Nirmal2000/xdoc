@@ -119,8 +119,12 @@ export function MessageRenderer({
         );
       }
 
-      // Handle tool parts (exclude writeTweet, handled via data-tool-output)
-      if (part.type === "tool-liveSearch" || part.type === "tool-fetchTweets") {
+      // Handle tool parts generically (exclude writeTweet; handled elsewhere)
+      if (
+        typeof part.type === "string" &&
+        part.type.startsWith("tool-") &&
+        part.type !== "tool-writeTweet"
+      ) {
         return <ToolPartRenderer key={key} part={part} keyPrefix={key} />;
       }
 
