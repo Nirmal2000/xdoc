@@ -40,6 +40,20 @@ export function MessageRenderer({
   // Process parts in their original order for interleaved display
   const renderMessageParts = (msg) => {
     if (!msg.parts || !Array.isArray(msg.parts)) {
+      // Ensure typing loader shows even before parts exist for the last assistant message
+      if (
+        isLastMessage &&
+        msg.role === "assistant" &&
+        (status === "streaming" || status === "submitted")
+      ) {
+        return [
+          (
+            <div key={`${msg.id}-loader`} className="mb-2">
+              <TypingLoader size="sm" />
+            </div>
+          ),
+        ];
+      }
       return null;
     }
 
@@ -136,9 +150,8 @@ export function MessageRenderer({
     // Add loader while any part is streaming in the last message
     if (
       isLastMessage &&
-      msg.parts &&
-      Array.isArray(msg.parts) &&
-      msg.parts.some((p) => p && p.state === "streaming")
+      msg.role === "assistant" &&
+      (status === "streaming" || status === "submitted")
     ) {
       renderedParts.push(
         <div key={`${msg.id}-loader`} className="mb-2">
