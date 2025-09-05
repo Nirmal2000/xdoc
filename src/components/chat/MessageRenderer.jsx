@@ -21,6 +21,7 @@ import { TweetPartsRenderer } from "./TweetPartsRenderer";
 import { ToolPartRenderer } from "./ToolPartRenderer";
 import { Markdown } from "@/components/ui/markdown";
 import { StreamingText } from "@/components/ui/streaming-text";
+import { isQuickTaskPrompt } from "@/lib/quick-tasks";
 /**
  * Component for rendering individual messages with their complex part structures
  */
@@ -197,6 +198,13 @@ export function MessageRenderer({
   const hasRenderable =
     (Array.isArray(messageContent) && messageContent.length > 0) ||
     (fallbackText && String(fallbackText).trim().length > 0);
+
+  // Suppress rendering of user bubble for exact quick task prompts
+  const shouldSuppressUserBubble = !isAssistant && isQuickTaskPrompt(fallbackText);
+
+  if (shouldSuppressUserBubble) {
+    return null;
+  }
 
   return (
     <Message

@@ -121,6 +121,30 @@ export function useChatInput(onSubmit, currentConversationId, userId, personas =
     }
   };
 
+  // Allows immediate submission of a provided prompt (used by QuickTasks)
+  const handleSubmitWithPrompt = (text) => {
+    const toSend = (text || '').trim();
+    if (!toSend) return;
+    // Don't allow submission if conversation is being created
+    if (currentConversationId?.startsWith('temp_')) {
+      return;
+    }
+    // Check rate limit before submitting
+    if (userId) {
+      const rateLimitStatus = checkRateLimit(userId);
+      if (!rateLimitStatus.allowed) {
+        toast.error('Rate limit exceeded. Please wait before sending another message.');
+        return;
+      }
+    }
+    onSubmit(toSend, {
+      search: false,
+      model: selectedModel,
+      persona: selectedPersona?.persona_prompt || null,
+    });
+    setPrompt('');
+  };
+
   const isSubmitDisabled = (status) => {
     // Check rate limit in addition to other conditions
     let rateLimitExceeded = false;
@@ -155,6 +179,7 @@ export function useChatInput(onSubmit, currentConversationId, userId, personas =
     selectedModel,
     setSelectedModel,
     handleSubmit,
+    handleSubmitWithPrompt,
     isSubmitDisabled,
     isInputDisabled,
     getPlaceholder

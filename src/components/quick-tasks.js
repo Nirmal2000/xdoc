@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { QUICK_TASK_PROMPTS } from '@/lib/quick-tasks';
 
-export default function QuickTasks({ setPrompt, userInfo }) {
+export default function QuickTasks({ setPrompt, onQuickTaskSubmit, userInfo }) {
   const params = useParams();
   const experienceId = params?.experienceId;
   const tweetsUrl = '/tweets';
@@ -16,9 +17,12 @@ export default function QuickTasks({ setPrompt, userInfo }) {
             className="relative overflow-hidden cursor-pointer group"
             style={{ borderRadius: '1.27rem' }}
             onClick={() => {
-              const basePrompt = "Please analyze my X/Twitter account comprehensively. Evaluate my content strategy, posting frequency, engagement patterns, audience demographics, content quality, and provide actionable recommendations for improvement. Include metrics analysis, competitor comparison, and specific suggestions to grow my presence on X.";
-              const handleSuffix = `\n\nMy X handle: ${userInfo?.username ?? ''}`;
-              setPrompt(basePrompt + handleSuffix);
+              const prompt = QUICK_TASK_PROMPTS[0];
+              if (onQuickTaskSubmit) {
+                onQuickTaskSubmit(prompt);
+              } else {
+                setPrompt(prompt);
+              }
             }}
           >
             <img src="/eval.png" alt="Evaluate your X" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />
@@ -31,8 +35,12 @@ export default function QuickTasks({ setPrompt, userInfo }) {
             className="relative overflow-hidden cursor-pointer group"
             style={{ borderRadius: '1.27rem' }}
             onClick={() => {
-              const prompt = "Help me create a compelling X/Twitter persona. Based on my interests, goals, and target audience, develop a unique personality with consistent voice, tone, and communication style. Include bio suggestions, content themes, posting schedule, and engagement strategies that will make my profile stand out and attract the right followers.";
-              setPrompt(prompt);
+              const prompt = QUICK_TASK_PROMPTS[1];
+              if (onQuickTaskSubmit) {
+                onQuickTaskSubmit(prompt);
+              } else {
+                setPrompt(prompt);
+              }
             }}
           >
             <img src="/persona.png" alt="Create Persona" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />
@@ -45,8 +53,12 @@ export default function QuickTasks({ setPrompt, userInfo }) {
             className="relative overflow-hidden cursor-pointer group"
             style={{ borderRadius: '1.27rem' }}
             onClick={() => {
-              const prompt = "Create a viral-worthy X/Twitter post for me. Analyze current trending topics, viral content patterns, and engagement strategies. Generate 3-5 different post variations with compelling hooks, emotional triggers, timing suggestions, and hashtag strategies. Include psychological triggers and formatting tips to maximize engagement and shares.";
-              setPrompt(prompt);
+              const prompt = QUICK_TASK_PROMPTS[2];
+              if (onQuickTaskSubmit) {
+                onQuickTaskSubmit(prompt);
+              } else {
+                setPrompt(prompt);
+              }
             }}
           >
             <img src="/viraltweet.png" alt="Create Viral X" className="w-full h-auto" style={{ borderRadius: '1.27rem' }} />

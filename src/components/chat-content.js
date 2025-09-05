@@ -56,7 +56,11 @@ export default function ChatContent({ messages, status, onSubmit, onStop, curren
                 <BarsLoader size="lg" className="text-primary" />                
               </div>
             ) : messages.length === 0 ? (
-              <QuickTasks setPrompt={chatInput.setPrompt} userInfo={userInfo} />
+              <QuickTasks 
+                setPrompt={chatInput.setPrompt}
+                onQuickTaskSubmit={chatInput.handleSubmitWithPrompt}
+                userInfo={userInfo} 
+              />
             ) : null}
             {!isLoadingConversation && messages.map((message, index) => {
               const isLastMessage = index === messages.length - 1;
