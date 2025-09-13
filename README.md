@@ -1,6 +1,7 @@
 # How to run
 
-Run `whop-proxy` in terminal
+`npm install`
+`whop-proxy`
 
-https://whop.com/experiences/exp_81zNm0HKcEJTg5
+Go to https://whop.com/experiences/exp_81zNm0HKcEJTg5
 Choose localhost
